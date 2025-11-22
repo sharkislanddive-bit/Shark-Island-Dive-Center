@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { ViewState } from './types';
 import { BookingEngine } from './components/BookingEngine';
 import { AdminPanel } from './components/AdminPanel';
+import { Hero } from './components/Hero';
 
 const App: React.FC = () => {
   const [view, setView] = useState<ViewState>(ViewState.BOOKING);
@@ -16,10 +17,17 @@ const App: React.FC = () => {
     }
   };
 
+  const scrollToBooking = () => {
+    const element = document.getElementById('booking-start');
+    if (element) {
+      element.scrollIntoView({ behavior: 'smooth' });
+    }
+  };
+
   return (
     <div className="min-h-screen flex flex-col font-sans text-slate-900 bg-shark-50">
       {/* Navbar */}
-      <nav className="bg-shark-950 text-white py-4 px-6 sticky top-0 z-50 shadow-md">
+      <nav className="bg-shark-950 text-white py-4 px-6 sticky top-0 z-50 shadow-md border-b border-white/5">
         <div className="container mx-auto flex justify-between items-center">
           <div 
             className="font-bold text-lg md:text-2xl tracking-tighter flex items-center gap-2 cursor-pointer"
@@ -41,7 +49,12 @@ const App: React.FC = () => {
       {/* Content */}
       <main className="flex-grow flex flex-col">
         {view === ViewState.BOOKING && (
-          <BookingEngine onBookingComplete={() => window.location.reload()} />
+          <>
+            <Hero onBookNow={scrollToBooking} />
+            <div id="booking-start">
+              <BookingEngine onBookingComplete={() => window.location.reload()} />
+            </div>
+          </>
         )}
         
         {view === ViewState.ADMIN && (
