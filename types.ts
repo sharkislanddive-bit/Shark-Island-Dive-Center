@@ -50,6 +50,13 @@ export interface BookingDraft {
   selectedAccommodationId: string | null;
   includeDomesticFlight: boolean;
   includeGearRental: boolean; // $30 per day flat
+  
+  // Guest Details
+  guestName: string;
+  email: string;
+  whatsapp: string;
+  nationality: string;
+  paymentMethod: 'BANK_TRANSFER' | 'WISE' | 'CASH_USD' | 'CASH_MVR';
 }
 
 export interface BookingTotals {

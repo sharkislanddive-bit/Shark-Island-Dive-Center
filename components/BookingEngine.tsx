@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { PricingSettings, BookingDraft, BookingTotals } from '../types';
 import { getSettings, calculateTotals } from '../services/settingsService';
-import { Calendar, Users, Anchor, Hotel, CheckCircle, Info, Leaf, AlertTriangle } from 'lucide-react';
+import { Calendar, Users, Anchor, Hotel, CheckCircle, Info, Leaf, User, CreditCard } from 'lucide-react';
 import { askSharkExpert } from '../services/geminiService';
 
 interface BookingEngineProps {
@@ -25,6 +25,11 @@ export const BookingEngine: React.FC<BookingEngineProps> = ({ onBookingComplete 
     selectedAccommodationId: null,
     includeDomesticFlight: true,
     includeGearRental: false,
+    guestName: '',
+    email: '',
+    whatsapp: '',
+    nationality: '',
+    paymentMethod: 'BANK_TRANSFER',
   });
 
   useEffect(() => {
@@ -51,9 +56,9 @@ export const BookingEngine: React.FC<BookingEngineProps> = ({ onBookingComplete 
   
   const handleConfirmBooking = () => {
       console.log("=== BOOKING CONFIRMED ===");
+      console.log("Guest:", draft.guestName, draft.email, draft.whatsapp);
       console.log("Draft Details:", draft);
       console.log("Financial Totals:", totals);
-      console.log("Current Settings Snapshot:", settings);
       console.log("=========================");
       
       setShowConfirmModal(false);
@@ -76,6 +81,10 @@ export const BookingEngine: React.FC<BookingEngineProps> = ({ onBookingComplete 
       return Math.round(totalRate / totals.nights);
   };
 
+  const isStep4Valid = () => {
+    return draft.guestName.length > 2 && draft.email.includes('@') && draft.whatsapp.length > 5 && draft.nationality.length > 2;
+  };
+
   if (!settings || !totals) return <div className="text-teal-900 p-10 text-center">Loading configuration...</div>;
 
   return (
@@ -89,15 +98,19 @@ export const BookingEngine: React.FC<BookingEngineProps> = ({ onBookingComplete 
                         { id: 1, icon: Calendar, label: 'Dates' },
                         { id: 2, icon: Anchor, label: 'Diving' },
                         { id: 3, icon: Hotel, label: 'Stay' },
-                        { id: 4, icon: CheckCircle, label: 'Review' }
+                        { id: 4, icon: User, label: 'Details' },
+                        { id: 5, icon: CheckCircle, label: 'Review' }
                     ].map((s) => (
                         <div 
                             key={s.id} 
-                            onClick={() => step > s.id && setStep(s.id)}
+                            onClick={() => {
+                                if (step > s.id) setStep(s.id); // Can always go back
+                                // Can only go forward if we are already past it (simple logic for now)
+                            }}
                             className={`flex flex-col items-center cursor-pointer transition-all ${step === s.id ? 'text-teal-600 scale-110' : 'text-gray-400'} ${step > s.id ? 'text-teal-600 hover:text-teal-500' : ''}`}
                         >
                             <s.icon size={24} className="mb-1" />
-                            <span className="text-xs font-bold uppercase">{s.label}</span>
+                            <span className="text-xs font-bold uppercase hidden md:block">{s.label}</span>
                         </div>
                     ))}
                 </div>
@@ -282,13 +295,104 @@ export const BookingEngine: React.FC<BookingEngineProps> = ({ onBookingComplete 
                         </div>
                          <div className="flex gap-4 mt-8">
                             <button onClick={() => setStep(2)} className="px-6 py-4 font-bold text-gray-500 hover:bg-gray-100 rounded-lg">Back</button>
-                            <button onClick={() => setStep(4)} className="flex-1 bg-shark-900 text-white py-4 rounded-lg font-bold hover:bg-shark-800 transition-colors">Next: Review</button>
+                            <button onClick={() => setStep(4)} className="flex-1 bg-shark-900 text-white py-4 rounded-lg font-bold hover:bg-shark-800 transition-colors">Next: Guest Details</button>
                         </div>
                     </div>
                 )}
 
-                {/* Step 4: Review & Transfers */}
+                {/* Step 4: Guest Details (NEW) */}
                 {step === 4 && (
+                    <div className="bg-white p-8 rounded-2xl shadow-lg animate-fade-in">
+                        <h2 className="text-2xl font-bold text-shark-900 mb-6 flex items-center gap-2">
+                            <User className="text-teal-500" /> Guest Information
+                        </h2>
+                        
+                        <div className="grid grid-cols-1 gap-6">
+                            <div>
+                                <label className="block text-sm font-bold text-gray-700 mb-2">Full Name</label>
+                                <input 
+                                    type="text" 
+                                    placeholder="Lead Guest Name"
+                                    value={draft.guestName}
+                                    onChange={(e) => setDraft({...draft, guestName: e.target.value})}
+                                    className="w-full bg-gray-50 border border-gray-300 rounded-xl p-4 focus:ring-2 focus:ring-teal-500 outline-none"
+                                />
+                            </div>
+                            
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div>
+                                    <label className="block text-sm font-bold text-gray-700 mb-2">Email Address</label>
+                                    <input 
+                                        type="email" 
+                                        placeholder="you@example.com"
+                                        value={draft.email}
+                                        onChange={(e) => setDraft({...draft, email: e.target.value})}
+                                        className="w-full bg-gray-50 border border-gray-300 rounded-xl p-4 focus:ring-2 focus:ring-teal-500 outline-none"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-bold text-gray-700 mb-2">WhatsApp Number</label>
+                                    <input 
+                                        type="tel" 
+                                        placeholder="+1 234 567 890"
+                                        value={draft.whatsapp}
+                                        onChange={(e) => setDraft({...draft, whatsapp: e.target.value})}
+                                        className="w-full bg-gray-50 border border-gray-300 rounded-xl p-4 focus:ring-2 focus:ring-teal-500 outline-none"
+                                    />
+                                </div>
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-bold text-gray-700 mb-2">Country of Nationality</label>
+                                <input 
+                                    type="text" 
+                                    placeholder="e.g. France, USA, Singapore"
+                                    value={draft.nationality}
+                                    onChange={(e) => setDraft({...draft, nationality: e.target.value})}
+                                    className="w-full bg-gray-50 border border-gray-300 rounded-xl p-4 focus:ring-2 focus:ring-teal-500 outline-none"
+                                />
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-bold text-gray-700 mb-2">Preferred Manual Payment Method</label>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                    {[
+                                        { id: 'BANK_TRANSFER', label: 'Bank Transfer (USD)' },
+                                        { id: 'WISE', label: 'Wise / Revolut' },
+                                        { id: 'CASH_USD', label: 'Cash on Arrival (USD)' },
+                                        { id: 'CASH_MVR', label: 'Cash on Arrival (MVR)' },
+                                    ].map((pm) => (
+                                        <div 
+                                            key={pm.id}
+                                            onClick={() => setDraft({...draft, paymentMethod: pm.id as any})}
+                                            className={`p-4 border rounded-xl cursor-pointer transition-all flex items-center gap-2 ${draft.paymentMethod === pm.id ? 'border-teal-500 bg-teal-50 text-teal-800' : 'border-gray-200 hover:border-gray-300'}`}
+                                        >
+                                            <div className={`w-4 h-4 rounded-full border ${draft.paymentMethod === pm.id ? 'bg-teal-500 border-teal-500' : 'border-gray-400'}`}></div>
+                                            <span className="text-sm font-medium">{pm.label}</span>
+                                        </div>
+                                    ))}
+                                </div>
+                                <p className="text-xs text-gray-400 mt-2 flex items-center gap-1">
+                                    <Info size={12}/> We will send payment instructions to your Email/WhatsApp.
+                                </p>
+                            </div>
+                        </div>
+
+                        <div className="flex gap-4 mt-8">
+                            <button onClick={() => setStep(3)} className="px-6 py-4 font-bold text-gray-500 hover:bg-gray-100 rounded-lg">Back</button>
+                            <button 
+                                onClick={() => setStep(5)} 
+                                disabled={!isStep4Valid()}
+                                className={`flex-1 text-white py-4 rounded-lg font-bold transition-colors ${isStep4Valid() ? 'bg-shark-900 hover:bg-shark-800' : 'bg-gray-300 cursor-not-allowed'}`}
+                            >
+                                Next: Final Review
+                            </button>
+                        </div>
+                    </div>
+                )}
+
+                {/* Step 5: Review & Transfers (Formerly Step 4) */}
+                {step === 5 && (
                     <div className="bg-white p-8 rounded-2xl shadow-lg animate-fade-in">
                          <h2 className="text-2xl font-bold text-shark-900 mb-6 flex items-center gap-2">
                             <CheckCircle className="text-teal-500" /> Final Review
@@ -313,6 +417,25 @@ export const BookingEngine: React.FC<BookingEngineProps> = ({ onBookingComplete 
                         </div>
 
                         <div className="space-y-4 text-sm border-t pt-4">
+                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-teal-50/50 p-4 rounded-lg mb-4 border border-teal-100">
+                                <div>
+                                    <span className="block text-gray-400 text-xs uppercase">Guest</span>
+                                    <span className="font-bold text-shark-900">{draft.guestName}</span>
+                                </div>
+                                <div>
+                                    <span className="block text-gray-400 text-xs uppercase">Contact</span>
+                                    <span className="font-bold text-shark-900">{draft.whatsapp}</span>
+                                </div>
+                                <div>
+                                    <span className="block text-gray-400 text-xs uppercase">Email</span>
+                                    <span className="font-bold text-shark-900">{draft.email}</span>
+                                </div>
+                                <div>
+                                    <span className="block text-gray-400 text-xs uppercase">Payment</span>
+                                    <span className="font-bold text-shark-900">{draft.paymentMethod.replace('_', ' ')}</span>
+                                </div>
+                             </div>
+
                             <div className="flex justify-between">
                                 <span className="text-gray-500">Dates</span>
                                 <span className="font-medium">{draft.checkIn} to {draft.checkOut} ({totals.nights} nights)</span>
@@ -337,12 +460,12 @@ export const BookingEngine: React.FC<BookingEngineProps> = ({ onBookingComplete 
                         </div>
 
                          <div className="flex gap-4 mt-8">
-                            <button onClick={() => setStep(3)} className="px-6 py-4 font-bold text-gray-500 hover:bg-gray-100 rounded-lg">Back</button>
+                            <button onClick={() => setStep(4)} className="px-6 py-4 font-bold text-gray-500 hover:bg-gray-100 rounded-lg">Back</button>
                             <button 
                                 onClick={() => setShowConfirmModal(true)}
                                 className="flex-1 bg-teal-500 text-white py-4 rounded-lg font-bold hover:bg-teal-400 shadow-lg shadow-teal-500/30 transition-all"
                             >
-                                Confirm & Pay Deposit
+                                Confirm Booking Request
                             </button>
                         </div>
                     </div>
@@ -388,7 +511,7 @@ export const BookingEngine: React.FC<BookingEngineProps> = ({ onBookingComplete 
                             <div className="flex items-start gap-2">
                                 <Info size={16} className="text-teal-400 mt-1 flex-shrink-0" />
                                 <p className="text-xs text-gray-300 leading-relaxed">
-                                    Includes Green Tax. A 20% deposit is required to secure spots. 
+                                    Includes Green Tax. We will coordinate payment manually via {draft.paymentMethod ? draft.paymentMethod.replace('_', ' ') : 'Email'}.
                                     {totals.seasonalAdjustmentApplied && ' Seasonal rates are included.'}
                                 </p>
                             </div>
@@ -439,11 +562,11 @@ export const BookingEngine: React.FC<BookingEngineProps> = ({ onBookingComplete 
                 <div className="w-16 h-16 bg-teal-100 rounded-full flex items-center justify-center mb-4 mx-auto text-teal-600">
                     <CheckCircle size={32} />
                 </div>
-                <h3 className="text-2xl font-bold text-shark-900 text-center mb-2">Ready to Dive?</h3>
-                <p className="text-gray-500 text-center mb-6 text-sm">
-                    You are about to confirm your booking for <strong className="text-shark-900">{draft.divers + draft.nonDivers} guests</strong>. 
-                    <br/>
-                    Total Amount: <strong className="text-teal-600 text-lg">${totals.grandTotal.toLocaleString()}</strong>
+                <h3 className="text-2xl font-bold text-shark-900 text-center mb-2">Request Received!</h3>
+                <p className="text-gray-500 text-center mb-6 text-sm leading-relaxed">
+                    Thank you <strong>{draft.guestName}</strong>. We have received your booking request.
+                    <br/><br/>
+                    Since we process payments manually, our team will contact you via <strong>{draft.whatsapp ? 'WhatsApp' : 'Email'}</strong> shortly to arrange the <strong>{draft.paymentMethod.replace('_', ' ')}</strong>.
                 </p>
 
                 <div className="space-y-3">
@@ -451,13 +574,7 @@ export const BookingEngine: React.FC<BookingEngineProps> = ({ onBookingComplete 
                         onClick={handleConfirmBooking}
                         className="w-full bg-shark-900 text-white py-4 rounded-xl font-bold hover:bg-shark-800 transition-all flex items-center justify-center gap-2"
                     >
-                        Confirm Booking & Pay
-                    </button>
-                    <button 
-                        onClick={() => setShowConfirmModal(false)}
-                        className="w-full bg-transparent text-gray-500 py-3 rounded-xl font-bold hover:bg-gray-50 transition-all"
-                    >
-                        Cancel
+                        Okay, Got It
                     </button>
                 </div>
             </div>
