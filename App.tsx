@@ -27,8 +27,13 @@ const App: React.FC = () => {
           >
             <span className="text-teal-400">SHARK ISLAND</span> DIVE CENTER FUVAHMULAH
           </div>
-          <div className="flex gap-6 text-sm font-medium">
-             {/* Navigation items removed as requested for single-purpose booking page */}
+          <div className="flex gap-6 text-sm font-medium items-center">
+             <a 
+               href="https://www.sharkislanddive.com" 
+               className="text-white hover:text-teal-400 transition-colors font-bold tracking-wide border border-white/20 hover:border-teal-400 px-4 py-2 rounded-full"
+             >
+               HOME
+             </a>
           </div>
         </div>
       </nav>
