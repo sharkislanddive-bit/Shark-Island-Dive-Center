@@ -22,10 +22,10 @@ const App: React.FC = () => {
       <nav className="bg-shark-950 text-white py-4 px-6 sticky top-0 z-50 shadow-md">
         <div className="container mx-auto flex justify-between items-center">
           <div 
-            className="font-bold text-2xl tracking-tighter flex items-center gap-2 cursor-pointer"
+            className="font-bold text-lg md:text-2xl tracking-tighter flex items-center gap-2 cursor-pointer"
             onClick={() => setView(ViewState.BOOKING)}
           >
-            <span className="text-teal-400">SHARK</span> ISLAND
+            <span className="text-teal-400">SHARK ISLAND</span> DIVE CENTER FUVAHMULAH
           </div>
           <div className="flex gap-6 text-sm font-medium">
              {/* Navigation items removed as requested for single-purpose booking page */}
