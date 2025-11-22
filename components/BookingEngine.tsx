@@ -1,16 +1,20 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { PricingSettings, BookingDraft, BookingTotals } from '../types';
 import { getSettings, calculateTotals } from '../services/settingsService';
-import { Calendar, Users, Anchor, Hotel, CheckCircle, Info, Leaf } from 'lucide-react';
+import { Calendar, Users, Anchor, Hotel, CheckCircle, Info, Leaf, AlertTriangle } from 'lucide-react';
 import { askSharkExpert } from '../services/geminiService';
 
-export const BookingEngine: React.FC = () => {
+interface BookingEngineProps {
+  onBookingComplete: () => void;
+}
+
+export const BookingEngine: React.FC<BookingEngineProps> = ({ onBookingComplete }) => {
   const [step, setStep] = useState(1);
   const [settings, setSettings] = useState<PricingSettings | null>(null);
-  const [aiOpen, setAiOpen] = useState(false);
   const [aiQuery, setAiQuery] = useState('');
   const [aiResponse, setAiResponse] = useState('');
   const [isThinking, setIsThinking] = useState(false);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
 
   const [draft, setDraft] = useState<BookingDraft>({
     checkIn: new Date().toISOString().split('T')[0],
@@ -45,13 +49,19 @@ export const BookingEngine: React.FC = () => {
     setIsThinking(false);
   };
   
-  // Helper to check if current dates intersect with any season for UI display
+  const handleConfirmBooking = () => {
+      console.log("=== BOOKING CONFIRMED ===");
+      console.log("Draft Details:", draft);
+      console.log("Financial Totals:", totals);
+      console.log("Current Settings Snapshot:", settings);
+      console.log("=========================");
+      
+      setShowConfirmModal(false);
+      onBookingComplete();
+  };
+  
   const getAverageNightlyPrice = (basePrice: number) => {
       if (!totals || totals.nights === 0) return basePrice;
-      // Simplified calculation: we can derive it from calculation logic or just show base price + warning
-      // Since we have accommodationCost in totals and we know it's for this specific accommodation if selected...
-      // But we need it for the *list* view.
-      // Let's just calculate it roughly for display in the list.
       let totalRate = 0;
       const start = new Date(draft.checkIn);
       const date = new Date(start);
@@ -66,92 +76,105 @@ export const BookingEngine: React.FC = () => {
       return Math.round(totalRate / totals.nights);
   };
 
-  if (!settings || !totals) return <div className="text-white p-10">Loading configuration...</div>;
+  if (!settings || !totals) return <div className="text-teal-900 p-10 text-center">Loading configuration...</div>;
 
   return (
     <div className="min-h-screen bg-shark-50 pb-20">
-      {/* Progress Bar */}
-      <div className="bg-white shadow-sm sticky top-0 z-30">
-        <div className="container mx-auto px-4 py-4">
-            <div className="flex items-center justify-between max-w-4xl mx-auto">
-                {[
-                    { id: 1, icon: Calendar, label: 'Dates' },
-                    { id: 2, icon: Anchor, label: 'Diving' },
-                    { id: 3, icon: Hotel, label: 'Stay' },
-                    { id: 4, icon: CheckCircle, label: 'Review' }
-                ].map((s) => (
-                    <div 
-                        key={s.id} 
-                        onClick={() => setStep(s.id)}
-                        className={`flex flex-col items-center cursor-pointer transition-all ${step === s.id ? 'text-teal-600 scale-110' : 'text-gray-400'} ${step > s.id ? 'text-teal-600' : ''}`}
-                    >
-                        <s.icon size={24} className="mb-1" />
-                        <span className="text-xs font-bold uppercase">{s.label}</span>
-                    </div>
-                ))}
+      {/* Progress Bar - Hidden on Step 1 for clean entry */}
+      {step > 1 && (
+        <div className="bg-white shadow-sm sticky top-0 z-30 animate-fade-in-down">
+            <div className="container mx-auto px-4 py-4">
+                <div className="flex items-center justify-between max-w-4xl mx-auto">
+                    {[
+                        { id: 1, icon: Calendar, label: 'Dates' },
+                        { id: 2, icon: Anchor, label: 'Diving' },
+                        { id: 3, icon: Hotel, label: 'Stay' },
+                        { id: 4, icon: CheckCircle, label: 'Review' }
+                    ].map((s) => (
+                        <div 
+                            key={s.id} 
+                            onClick={() => step > s.id && setStep(s.id)}
+                            className={`flex flex-col items-center cursor-pointer transition-all ${step === s.id ? 'text-teal-600 scale-110' : 'text-gray-400'} ${step > s.id ? 'text-teal-600 hover:text-teal-500' : ''}`}
+                        >
+                            <s.icon size={24} className="mb-1" />
+                            <span className="text-xs font-bold uppercase">{s.label}</span>
+                        </div>
+                    ))}
+                </div>
             </div>
         </div>
-      </div>
+      )}
 
       <div className="container mx-auto px-4 py-8 max-w-5xl">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             
             {/* Main Form Area */}
-            <div className="lg:col-span-2 space-y-6">
+            <div className={step === 1 ? "lg:col-span-3 flex justify-center" : "lg:col-span-2 space-y-6"}>
                 
-                {/* Step 1: Dates & Pax */}
+                {/* Step 1: Dates & Pax - Centered View */}
                 {step === 1 && (
-                    <div className="bg-white p-8 rounded-2xl shadow-lg animate-fade-in">
-                        <h2 className="text-2xl font-bold text-shark-900 mb-6 flex items-center gap-2">
-                            <Calendar className="text-teal-500" /> Expedition Dates
-                        </h2>
+                    <div className="w-full max-w-2xl bg-white p-8 md:p-10 rounded-2xl shadow-xl animate-fade-in border-t-4 border-teal-500 mt-10">
+                        <div className="text-center mb-8">
+                            <h1 className="text-3xl md:text-4xl font-bold text-shark-900 mb-2">Start Your Expedition</h1>
+                            <p className="text-gray-500">Select your travel dates to view availability and pricing.</p>
+                        </div>
+
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
                             <div>
-                                <label className="block text-sm font-bold text-gray-600 mb-2">Check In</label>
+                                <label className="block text-sm font-bold text-gray-700 mb-2 uppercase tracking-wide">Check In</label>
                                 <input 
                                     type="date" 
                                     value={draft.checkIn}
                                     onChange={(e) => setDraft({...draft, checkIn: e.target.value})}
-                                    className="w-full bg-gray-50 border border-gray-200 rounded-lg p-3 focus:ring-2 focus:ring-teal-500 outline-none"
+                                    className="w-full bg-gray-50 border border-gray-300 rounded-xl p-4 focus:ring-2 focus:ring-teal-500 outline-none font-semibold text-shark-900"
                                 />
                             </div>
                             <div>
-                                <label className="block text-sm font-bold text-gray-600 mb-2">Check Out</label>
+                                <label className="block text-sm font-bold text-gray-700 mb-2 uppercase tracking-wide">Check Out</label>
                                 <input 
                                     type="date" 
                                     value={draft.checkOut}
                                     onChange={(e) => setDraft({...draft, checkOut: e.target.value})}
-                                    className="w-full bg-gray-50 border border-gray-200 rounded-lg p-3 focus:ring-2 focus:ring-teal-500 outline-none"
+                                    className="w-full bg-gray-50 border border-gray-300 rounded-xl p-4 focus:ring-2 focus:ring-teal-500 outline-none font-semibold text-shark-900"
                                 />
                             </div>
                         </div>
-                        <div className="grid grid-cols-2 gap-6">
+                        
+                        <div className="grid grid-cols-2 gap-6 mb-8">
                             <div>
-                                <label className="block text-sm font-bold text-gray-600 mb-2">Divers</label>
-                                <input 
-                                    type="number" 
-                                    min="1"
-                                    value={draft.divers}
-                                    onChange={(e) => setDraft({...draft, divers: parseInt(e.target.value)})}
-                                    className="w-full bg-gray-50 border border-gray-200 rounded-lg p-3"
-                                />
+                                <label className="block text-sm font-bold text-gray-700 mb-2 uppercase tracking-wide">Divers</label>
+                                <div className="relative">
+                                    <Users className="absolute left-3 top-3.5 text-gray-400" size={20} />
+                                    <input 
+                                        type="number" 
+                                        min="1"
+                                        value={draft.divers}
+                                        onChange={(e) => setDraft({...draft, divers: parseInt(e.target.value)})}
+                                        className="w-full bg-gray-50 border border-gray-300 rounded-xl p-4 pl-10 font-semibold"
+                                    />
+                                </div>
                             </div>
                             <div>
-                                <label className="block text-sm font-bold text-gray-600 mb-2">Non-Divers</label>
-                                <input 
-                                    type="number" 
-                                    min="0"
-                                    value={draft.nonDivers}
-                                    onChange={(e) => setDraft({...draft, nonDivers: parseInt(e.target.value)})}
-                                    className="w-full bg-gray-50 border border-gray-200 rounded-lg p-3"
-                                />
+                                <label className="block text-sm font-bold text-gray-700 mb-2 uppercase tracking-wide">Non-Divers</label>
+                                <div className="relative">
+                                    <Users className="absolute left-3 top-3.5 text-gray-400" size={20} />
+                                    <input 
+                                        type="number" 
+                                        min="0"
+                                        value={draft.nonDivers}
+                                        onChange={(e) => setDraft({...draft, nonDivers: parseInt(e.target.value)})}
+                                        className="w-full bg-gray-50 border border-gray-300 rounded-xl p-4 pl-10 font-semibold"
+                                    />
+                                </div>
                             </div>
                         </div>
+
                         <button 
                             onClick={() => setStep(2)}
-                            className="w-full mt-8 bg-shark-900 text-white py-4 rounded-lg font-bold hover:bg-shark-800 transition-colors"
+                            className="w-full bg-shark-900 text-white text-lg py-5 rounded-xl font-bold hover:bg-teal-600 transition-all shadow-lg hover:shadow-teal-500/20 flex items-center justify-center gap-2"
                         >
-                            Next: Configure Dives
+                            Check Availability & Rates
+                            <Calendar size={20} />
                         </button>
                     </div>
                 )}
@@ -276,7 +299,7 @@ export const BookingEngine: React.FC = () => {
                                 <input 
                                     type="checkbox" 
                                     checked={draft.includeDomesticFlight}
-                                    onChange={(e) => setDraft({...draft, includeDomesticFlight: e.target.checked})}
+                                    onChange={(e) => setDraft({...draft,includeDomesticFlight: e.target.checked})}
                                     className="w-5 h-5 text-teal-600 rounded focus:ring-teal-500"
                                 />
                                 <div>
@@ -315,92 +338,131 @@ export const BookingEngine: React.FC = () => {
 
                          <div className="flex gap-4 mt-8">
                             <button onClick={() => setStep(3)} className="px-6 py-4 font-bold text-gray-500 hover:bg-gray-100 rounded-lg">Back</button>
-                            <button className="flex-1 bg-teal-500 text-white py-4 rounded-lg font-bold hover:bg-teal-400 shadow-lg shadow-teal-500/30 transition-all">Confirm & Pay Deposit</button>
+                            <button 
+                                onClick={() => setShowConfirmModal(true)}
+                                className="flex-1 bg-teal-500 text-white py-4 rounded-lg font-bold hover:bg-teal-400 shadow-lg shadow-teal-500/30 transition-all"
+                            >
+                                Confirm & Pay Deposit
+                            </button>
                         </div>
                     </div>
                 )}
 
             </div>
 
-            {/* Sidebar Summary */}
-            <div className="lg:col-span-1">
-                <div className="sticky top-24 bg-shark-900 text-white rounded-2xl p-6 shadow-xl">
-                    <h3 className="text-xl font-bold mb-6 border-b border-shark-700 pb-4">Booking Summary</h3>
-                    
-                    <div className="space-y-3 text-sm mb-6">
-                        <div className="flex justify-between">
-                            <span className="text-shark-300">Diving ({draft.totalDives * draft.divers})</span>
-                            <span>${totals.diveCost.toLocaleString()}</span>
+            {/* Sidebar Summary - Hidden on Step 1 to simplify entry */}
+            {step > 1 && (
+                <div className="lg:col-span-1">
+                    <div className="sticky top-24 bg-shark-900 text-white rounded-2xl p-6 shadow-xl animate-fade-in">
+                        <h3 className="text-xl font-bold mb-6 border-b border-shark-700 pb-4">Booking Summary</h3>
+                        
+                        <div className="space-y-3 text-sm mb-6">
+                            <div className="flex justify-between">
+                                <span className="text-shark-300">Diving ({draft.totalDives * draft.divers})</span>
+                                <span>${totals.diveCost.toLocaleString()}</span>
+                            </div>
+                            <div className="flex justify-between">
+                                <span className="text-shark-300">Accommodation ({totals.nights}n)</span>
+                                <span>${totals.accommodationCost.toLocaleString()}</span>
+                            </div>
+                            <div className="flex justify-between">
+                                <span className="text-shark-300">Gear Rental</span>
+                                <span>${totals.gearCost.toLocaleString()}</span>
+                            </div>
+                            <div className="flex justify-between">
+                                <span className="text-shark-300">Transfers & Flight</span>
+                                <span>${totals.transferCost.toLocaleString()}</span>
+                            </div>
+                            <div className="flex justify-between text-teal-200">
+                                <span className="flex items-center gap-1"><Leaf size={12} /> Green Tax</span>
+                                <span>${totals.taxCost.toLocaleString()}</span>
+                            </div>
                         </div>
-                        <div className="flex justify-between">
-                            <span className="text-shark-300">Accommodation ({totals.nights}n)</span>
-                            <span>${totals.accommodationCost.toLocaleString()}</span>
+
+                        <div className="border-t border-shark-700 pt-4 flex justify-between items-center mb-6">
+                            <span className="font-bold text-lg">Total Est.</span>
+                            <span className="font-bold text-3xl text-teal-400">${totals.grandTotal.toLocaleString()}</span>
                         </div>
-                         <div className="flex justify-between">
-                            <span className="text-shark-300">Gear Rental</span>
-                            <span>${totals.gearCost.toLocaleString()}</span>
-                        </div>
-                        <div className="flex justify-between">
-                            <span className="text-shark-300">Transfers & Flight</span>
-                            <span>${totals.transferCost.toLocaleString()}</span>
-                        </div>
-                         <div className="flex justify-between text-teal-200">
-                            <span className="flex items-center gap-1"><Leaf size={12} /> Green Tax</span>
-                            <span>${totals.taxCost.toLocaleString()}</span>
+                        
+                        <div className="bg-shark-800 p-4 rounded-lg">
+                            <div className="flex items-start gap-2">
+                                <Info size={16} className="text-teal-400 mt-1 flex-shrink-0" />
+                                <p className="text-xs text-gray-300 leading-relaxed">
+                                    Includes Green Tax. A 20% deposit is required to secure spots. 
+                                    {totals.seasonalAdjustmentApplied && ' Seasonal rates are included.'}
+                                </p>
+                            </div>
                         </div>
                     </div>
 
-                    <div className="border-t border-shark-700 pt-4 flex justify-between items-center mb-6">
-                        <span className="font-bold text-lg">Total Est.</span>
-                        <span className="font-bold text-3xl text-teal-400">${totals.grandTotal.toLocaleString()}</span>
+                    {/* AI Helper Float */}
+                    <div className="mt-6 bg-white rounded-2xl shadow-lg p-4 border border-teal-100">
+                        <div className="flex items-center gap-3 mb-3">
+                            <div className="w-10 h-10 rounded-full bg-teal-100 flex items-center justify-center text-2xl">🦈</div>
+                            <div>
+                                <h4 className="font-bold text-sm text-shark-900">Ask Fin, the Shark Expert</h4>
+                                <p className="text-xs text-gray-500">Powered by Gemini</p>
+                            </div>
+                        </div>
+                        <div className="relative">
+                            <input 
+                                className="w-full bg-gray-50 border rounded-lg p-2 text-sm pr-8"
+                                placeholder="Best time for Tiger Sharks?"
+                                value={aiQuery}
+                                onChange={(e) => setAiQuery(e.target.value)}
+                                onKeyDown={(e) => e.key === 'Enter' && handleAiAsk()}
+                            />
+                            <button 
+                                onClick={handleAiAsk}
+                                className="absolute right-2 top-2 text-teal-600 hover:text-teal-800"
+                            >
+                                ➤
+                            </button>
+                        </div>
+                        {isThinking && <p className="text-xs text-gray-400 mt-2 animate-pulse">Consulting the ocean...</p>}
+                        {aiResponse && (
+                            <div className="mt-3 text-xs bg-teal-50 p-3 rounded text-shark-800 leading-relaxed">
+                                {aiResponse}
+                            </div>
+                        )}
                     </div>
-                    
-                    <div className="bg-shark-800 p-4 rounded-lg">
-                         <div className="flex items-start gap-2">
-                            <Info size={16} className="text-teal-400 mt-1 flex-shrink-0" />
-                            <p className="text-xs text-gray-300 leading-relaxed">
-                                Includes Green Tax. A 20% deposit is required to secure spots. 
-                                {totals.seasonalAdjustmentApplied && ' Seasonal rates are included.'}
-                            </p>
-                         </div>
-                    </div>
+
                 </div>
-
-                {/* AI Helper Float */}
-                <div className="mt-6 bg-white rounded-2xl shadow-lg p-4 border border-teal-100">
-                     <div className="flex items-center gap-3 mb-3">
-                         <div className="w-10 h-10 rounded-full bg-teal-100 flex items-center justify-center text-2xl">🦈</div>
-                         <div>
-                             <h4 className="font-bold text-sm text-shark-900">Ask Fin, the Shark Expert</h4>
-                             <p className="text-xs text-gray-500">Powered by Gemini</p>
-                         </div>
-                     </div>
-                     <div className="relative">
-                         <input 
-                            className="w-full bg-gray-50 border rounded-lg p-2 text-sm pr-8"
-                            placeholder="Best time for Tiger Sharks?"
-                            value={aiQuery}
-                            onChange={(e) => setAiQuery(e.target.value)}
-                            onKeyDown={(e) => e.key === 'Enter' && handleAiAsk()}
-                         />
-                         <button 
-                            onClick={handleAiAsk}
-                            className="absolute right-2 top-2 text-teal-600 hover:text-teal-800"
-                         >
-                             ➤
-                         </button>
-                     </div>
-                     {isThinking && <p className="text-xs text-gray-400 mt-2 animate-pulse">Consulting the ocean...</p>}
-                     {aiResponse && (
-                         <div className="mt-3 text-xs bg-teal-50 p-3 rounded text-shark-800 leading-relaxed">
-                             {aiResponse}
-                         </div>
-                     )}
-                </div>
-
-            </div>
+            )}
         </div>
       </div>
+
+      {/* Confirmation Modal */}
+      {showConfirmModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm animate-fade-in">
+            <div className="bg-white rounded-2xl p-8 shadow-2xl max-w-md w-full mx-4 relative animate-fade-in-up">
+                <div className="w-16 h-16 bg-teal-100 rounded-full flex items-center justify-center mb-4 mx-auto text-teal-600">
+                    <CheckCircle size={32} />
+                </div>
+                <h3 className="text-2xl font-bold text-shark-900 text-center mb-2">Ready to Dive?</h3>
+                <p className="text-gray-500 text-center mb-6 text-sm">
+                    You are about to confirm your booking for <strong className="text-shark-900">{draft.divers + draft.nonDivers} guests</strong>. 
+                    <br/>
+                    Total Amount: <strong className="text-teal-600 text-lg">${totals.grandTotal.toLocaleString()}</strong>
+                </p>
+
+                <div className="space-y-3">
+                    <button 
+                        onClick={handleConfirmBooking}
+                        className="w-full bg-shark-900 text-white py-4 rounded-xl font-bold hover:bg-shark-800 transition-all flex items-center justify-center gap-2"
+                    >
+                        Confirm Booking & Pay
+                    </button>
+                    <button 
+                        onClick={() => setShowConfirmModal(false)}
+                        className="w-full bg-transparent text-gray-500 py-3 rounded-xl font-bold hover:bg-gray-50 transition-all"
+                    >
+                        Cancel
+                    </button>
+                </div>
+            </div>
+        </div>
+      )}
     </div>
   );
 };
