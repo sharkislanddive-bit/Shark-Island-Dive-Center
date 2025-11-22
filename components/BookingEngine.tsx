@@ -1,8 +1,10 @@
+
 import React, { useState, useEffect, useMemo } from 'react';
 import { PricingSettings, BookingDraft, BookingTotals } from '../types';
 import { getSettings, calculateTotals } from '../services/settingsService';
-import { Calendar, Users, Anchor, Hotel, CheckCircle, Info, Leaf, User, CreditCard } from 'lucide-react';
+import { Calendar, Users, Anchor, Hotel, CheckCircle, Info, Leaf, User, CreditCard, Loader2 } from 'lucide-react';
 import { askSharkExpert } from '../services/geminiService';
+import { sendConfirmationEmail } from '../services/emailService';
 
 interface BookingEngineProps {
   onBookingComplete: () => void;
@@ -15,6 +17,9 @@ export const BookingEngine: React.FC<BookingEngineProps> = ({ onBookingComplete 
   const [aiResponse, setAiResponse] = useState('');
   const [isThinking, setIsThinking] = useState(false);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
+  
+  // New state for email sending
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [draft, setDraft] = useState<BookingDraft>({
     checkIn: new Date().toISOString().split('T')[0],
@@ -54,13 +59,21 @@ export const BookingEngine: React.FC<BookingEngineProps> = ({ onBookingComplete 
     setIsThinking(false);
   };
   
-  const handleConfirmBooking = () => {
-      console.log("=== BOOKING CONFIRMED ===");
-      console.log("Guest:", draft.guestName, draft.email, draft.whatsapp);
-      console.log("Draft Details:", draft);
-      console.log("Financial Totals:", totals);
-      console.log("=========================");
+  const handleBookingSubmission = async () => {
+      if(!settings || !totals) return;
       
+      setIsSubmitting(true);
+      
+      // 1. Send Email (Simulated)
+      await sendConfirmationEmail(draft, totals, settings);
+      
+      // 2. Show Success Modal
+      setIsSubmitting(false);
+      setShowConfirmModal(true);
+  };
+  
+  const handleCloseModal = () => {
+      console.log("=== BOOKING COMPLETED ===");
       setShowConfirmModal(false);
       onBookingComplete();
   };
@@ -460,12 +473,17 @@ export const BookingEngine: React.FC<BookingEngineProps> = ({ onBookingComplete 
                         </div>
 
                          <div className="flex gap-4 mt-8">
-                            <button onClick={() => setStep(4)} className="px-6 py-4 font-bold text-gray-500 hover:bg-gray-100 rounded-lg">Back</button>
+                            <button onClick={() => setStep(4)} disabled={isSubmitting} className="px-6 py-4 font-bold text-gray-500 hover:bg-gray-100 rounded-lg disabled:opacity-50">Back</button>
                             <button 
-                                onClick={() => setShowConfirmModal(true)}
-                                className="flex-1 bg-teal-500 text-white py-4 rounded-lg font-bold hover:bg-teal-400 shadow-lg shadow-teal-500/30 transition-all"
+                                onClick={handleBookingSubmission}
+                                disabled={isSubmitting}
+                                className="flex-1 bg-teal-500 text-white py-4 rounded-lg font-bold hover:bg-teal-400 shadow-lg shadow-teal-500/30 transition-all flex justify-center items-center gap-2 disabled:bg-gray-400 disabled:shadow-none"
                             >
-                                Confirm Booking Request
+                                {isSubmitting ? (
+                                    <>
+                                        <Loader2 className="animate-spin" /> Processing...
+                                    </>
+                                ) : 'Confirm Booking Request'}
                             </button>
                         </div>
                     </div>
@@ -566,12 +584,14 @@ export const BookingEngine: React.FC<BookingEngineProps> = ({ onBookingComplete 
                 <p className="text-gray-500 text-center mb-6 text-sm leading-relaxed">
                     Thank you <strong>{draft.guestName}</strong>. We have received your booking request.
                     <br/><br/>
-                    Since we process payments manually, our team will contact you via <strong>{draft.whatsapp ? 'WhatsApp' : 'Email'}</strong> shortly to arrange the <strong>{draft.paymentMethod.replace('_', ' ')}</strong>.
+                    A confirmation email has been sent to <strong>{draft.email}</strong>.
+                    <br/><br/>
+                    Our reservations team will contact you shortly via <strong>{draft.whatsapp ? 'WhatsApp' : 'Email'}</strong> to finalize payment via <strong>{draft.paymentMethod.replace('_', ' ')}</strong>.
                 </p>
 
                 <div className="space-y-3">
                     <button 
-                        onClick={handleConfirmBooking}
+                        onClick={handleCloseModal}
                         className="w-full bg-shark-900 text-white py-4 rounded-xl font-bold hover:bg-shark-800 transition-all flex items-center justify-center gap-2"
                     >
                         Okay, Got It
