@@ -122,7 +122,7 @@ export interface DailyEvent {
   date: string;
   time: string;
   title: string;
-  type: 'Morning Dive' | 'Tiger Zoo' | 'Reef Dive' | 'Afternoon Dive' | 'Night Dive' | 'Theory';
+  type: 'Morning Dive' | 'Tiger Harbour' | 'Reef Dive' | 'Afternoon Dive' | 'Night Dive' | 'Theory' | 'Excursion';
   boat: 'Shark One' | 'Shark Two' | 'Classroom';
   staffIds: string[];
   guestCount: number;
@@ -149,4 +149,17 @@ export interface SystemUser {
   role: SystemRole;
   status: 'ACTIVE' | 'INACTIVE';
   lastLogin?: string;
+}
+
+// --- MANIFEST TYPES ---
+export interface StayBreakdown {
+    bookingId: string;
+    guestName: string;
+    pax: number;
+    arrival: string; // ISO DateTime if avail, else Date
+    departure: string;
+    nights: string[]; // Array of dates
+    days: string[]; // Array of dates
+    nightCount: number;
+    dayCount: number;
 }

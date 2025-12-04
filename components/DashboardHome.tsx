@@ -122,7 +122,7 @@ export const DashboardHome: React.FC = () => {
                                     <span>{evt.boat}</span> • <span>{evt.guestCount} Pax</span>
                                 </div>
                             </div>
-                            <div className={`px-3 py-1 rounded-full text-xs font-bold ${evt.type === 'Tiger Zoo' ? 'bg-orange-100 text-orange-700' : 'bg-blue-100 text-blue-700'}`}>
+                            <div className={`px-3 py-1 rounded-full text-xs font-bold ${evt.type === 'Tiger Harbour' ? 'bg-orange-100 text-orange-700' : 'bg-blue-100 text-blue-700'}`}>
                                 {evt.type}
                             </div>
                         </div>

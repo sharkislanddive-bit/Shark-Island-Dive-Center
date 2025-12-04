@@ -16,7 +16,7 @@ const DEFAULT_SETTINGS: PricingSettings = {
       dives: 10,
       price: 750,
       description: 'Ideal for getting comfortable with the Tigers.',
-      features: ['10 Guided Boat Dives', 'Tiger Zoo Guaranteed', 'Free Nitrox', 'Weights & Tank included']
+      features: ['10 Guided Boat Dives', 'Tiger Harbour Guaranteed', 'Free Nitrox', 'Weights & Tank included']
     },
     {
       id: 'pkg-legend',

@@ -1,5 +1,4 @@
-
-import { Booking } from '../types';
+import { Booking, StayBreakdown } from '../types';
 
 const BOOKING_STORAGE_KEY = 'shark_island_bookings';
 
@@ -39,4 +38,43 @@ export const isDateInBooking = (dateStr: string, booking: Booking): boolean => {
 // Guests typically don't dive on checkout day due to flight intervals
 export const isDiveDate = (dateStr: string, booking: Booking): boolean => {
   return dateStr >= booking.checkIn && dateStr < booking.checkOut;
+};
+
+export const getDetailedStayBreakdown = (booking: Booking): StayBreakdown => {
+    const start = new Date(booking.checkIn);
+    const end = new Date(booking.checkOut);
+    // Difference in time
+    const diffTime = Math.abs(end.getTime() - start.getTime());
+    // Difference in days (nights)
+    const nightCount = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
+    const dayCount = nightCount + 1;
+
+    const nights: string[] = [];
+    const days: string[] = [];
+
+    // Nights array
+    let current = new Date(start);
+    for (let i = 0; i < nightCount; i++) {
+        nights.push(current.toISOString().split('T')[0]);
+        current.setDate(current.getDate() + 1);
+    }
+
+    // Days array
+    current = new Date(start);
+    for (let i = 0; i < dayCount; i++) {
+        days.push(current.toISOString().split('T')[0]);
+        current.setDate(current.getDate() + 1);
+    }
+
+    return {
+        bookingId: booking.id,
+        guestName: booking.guestName,
+        pax: booking.divers + booking.nonDivers,
+        arrival: booking.checkIn,
+        departure: booking.checkOut,
+        nights,
+        days,
+        nightCount,
+        dayCount
+    };
 };
