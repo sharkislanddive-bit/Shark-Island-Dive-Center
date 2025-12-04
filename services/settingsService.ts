@@ -1,5 +1,5 @@
 
-import { PricingSettings, DiveTier, Accommodation, Season } from '../types';
+import { PricingSettings, DiveTier, Accommodation, Season, DivePackage } from '../types';
 
 const STORAGE_KEY = 'shark_island_settings';
 
@@ -8,6 +8,24 @@ const DEFAULT_SETTINGS: PricingSettings = {
     { minDives: 1, maxDives: 5, pricePerDive: 85 },
     { minDives: 6, maxDives: 10, pricePerDive: 75 },
     { minDives: 11, maxDives: 100, pricePerDive: 65 },
+  ],
+  packages: [
+    {
+      id: 'pkg-explorer',
+      name: 'Tiger Explorer 10',
+      dives: 10,
+      price: 750,
+      description: 'Ideal for getting comfortable with the Tigers.',
+      features: ['10 Guided Boat Dives', 'Tiger Zoo Guaranteed', 'Free Nitrox', 'Weights & Tank included']
+    },
+    {
+      id: 'pkg-legend',
+      name: 'Fuvahmulah Legend 20',
+      dives: 20,
+      price: 1300,
+      description: 'The complete immersion experience.',
+      features: ['20 Guided Boat Dives', 'Priority Boat Seating', 'Free Nitrox', 'Video Package Included']
+    }
   ],
   accommodations: [
     {
@@ -68,6 +86,9 @@ export const getSettings = (): PricingSettings => {
       const merged = { ...DEFAULT_SETTINGS, ...parsed };
       // Ensure instructors array exists if loading from older localstorage
       if (!merged.instructors) merged.instructors = DEFAULT_SETTINGS.instructors;
+      // Ensure packages array exists
+      if (!merged.packages) merged.packages = DEFAULT_SETTINGS.packages;
+      
       return merged;
     } catch (e) {
       console.error("Failed to parse settings", e);

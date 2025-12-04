@@ -1,9 +1,10 @@
 
 import React, { useState, useEffect } from 'react';
-import { PricingSettings, DiveTier, Accommodation, Season, Instructor, Booking } from '../types';
+import { PricingSettings, DiveTier, Accommodation, Season, Instructor, Booking, DivePackage, SystemUser, SystemRole } from '../types';
 import { getSettings, saveSettings } from '../services/settingsService';
 import { getBookings, isDateInBooking, saveBooking } from '../services/bookingService';
-import { Save, Plus, Trash2, DollarSign, Hotel, Plane, CalendarRange, Car, UserCheck, Calendar, X, ChevronLeft, ChevronRight, User, Leaf, Info } from 'lucide-react';
+import { getUsers, saveUser, deleteUser } from '../services/mockDb';
+import { Save, Plus, Trash2, DollarSign, Hotel, Plane, CalendarRange, Car, UserCheck, Calendar, X, ChevronLeft, ChevronRight, User, Leaf, Info, Package, Shield, Mail, Phone, Check } from 'lucide-react';
 
 interface AdminPanelProps {
   onClose: () => void;
@@ -11,20 +12,25 @@ interface AdminPanelProps {
 
 export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose }) => {
   const [settings, setSettings] = useState<PricingSettings | null>(null);
-  const [activeTab, setActiveTab] = useState<'diving' | 'accommodation' | 'transfers' | 'seasons' | 'instructors'>('diving');
+  const [activeTab, setActiveTab] = useState<'diving' | 'packages' | 'accommodation' | 'transfers' | 'seasons' | 'instructors' | 'users'>('diving');
   const [message, setMessage] = useState('');
   
   // Instructor Calendar State
   const [selectedInstructorId, setSelectedInstructorId] = useState<string | null>(null);
-  const [currentMonth, setCurrentMonth] = useState(new Date());
   
-  // Bookings State (for calendar visualization)
+  // Bookings State
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
+
+  // User Management State
+  const [users, setUsers] = useState<SystemUser[]>([]);
+  const [isUserModalOpen, setIsUserModalOpen] = useState(false);
+  const [editingUser, setEditingUser] = useState<Partial<SystemUser>>({});
 
   useEffect(() => {
     setSettings(getSettings());
     setBookings(getBookings());
+    setUsers(getUsers());
   }, []);
 
   const handleSave = () => {
@@ -35,13 +41,55 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose }) => {
     }
   };
   
-  // Helper to assign an instructor to a booking (mock functionality for demo)
+  // --- USER MANAGEMENT HANDLERS ---
+  const handleEditUser = (user?: SystemUser) => {
+    if (user) {
+      setEditingUser({ ...user }); 
+    } else {
+      setEditingUser({
+        name: '',
+        email: '',
+        phone: '',
+        role: 'STAFF',
+        status: 'ACTIVE'
+      });
+    }
+    setIsUserModalOpen(true);
+  };
+
+  const handleSaveUser = () => {
+    if (!editingUser.name || !editingUser.email) return;
+    
+    const userToSave: SystemUser = {
+      id: editingUser.id || `u-${Date.now()}`,
+      name: editingUser.name,
+      email: editingUser.email,
+      phone: editingUser.phone || '',
+      role: editingUser.role || 'STAFF',
+      status: editingUser.status || 'ACTIVE',
+      lastLogin: editingUser.lastLogin
+    };
+
+    saveUser(userToSave);
+    setUsers(getUsers()); // Refresh list
+    setIsUserModalOpen(false);
+    setMessage(editingUser.id ? 'User updated successfully' : 'User created successfully');
+    setTimeout(() => setMessage(''), 3000);
+  };
+
+  const handleDeleteUser = (userId: string) => {
+    if (window.confirm('Are you sure you want to delete this user? This cannot be undone.')) {
+      deleteUser(userId);
+      setUsers(getUsers());
+    }
+  };
+
   const assignInstructorToBooking = (bookingId: string, instructorId: string | null) => {
       const booking = bookings.find(b => b.id === bookingId);
       if (booking) {
           const updated = { ...booking, assignedInstructorId: instructorId };
           saveBooking(updated);
-          setBookings(getBookings()); // Refresh
+          setBookings(getBookings());
           if (selectedBooking && selectedBooking.id === bookingId) {
               setSelectedBooking(updated);
           }
@@ -50,9 +98,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose }) => {
 
   if (!settings) return <div className="p-10 text-center">Loading Admin Panel...</div>;
 
-  // --- Handlers ---
-
-  // Diving Tier
+  // --- Handlers (Existing) ---
   const updateTier = (index: number, field: keyof DiveTier, value: number) => {
     const newTiers = [...settings.diveTiers];
     newTiers[index] = { ...newTiers[index], [field]: value };
@@ -69,7 +115,29 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose }) => {
     setSettings({ ...settings, diveTiers: newTiers });
   };
 
-  // Accommodation
+  const addPackage = () => {
+    setSettings({
+      ...settings,
+      packages: [...(settings.packages || []), {
+        id: Date.now().toString(),
+        name: 'New Package',
+        dives: 10,
+        price: 700,
+        description: '',
+        features: ['Feature 1', 'Feature 2']
+      }]
+    });
+  };
+  const removePackage = (index: number) => {
+    const newPkgs = (settings.packages || []).filter((_, i) => i !== index);
+    setSettings({ ...settings, packages: newPkgs });
+  };
+  const updatePackage = (index: number, field: keyof DivePackage, value: any) => {
+    const newPkgs = [...(settings.packages || [])];
+    newPkgs[index] = { ...newPkgs[index], [field]: value };
+    setSettings({ ...settings, packages: newPkgs });
+  };
+
   const updateAccom = (index: number, field: keyof Accommodation, value: any) => {
     const newAcc = [...settings.accommodations];
     newAcc[index] = { ...newAcc[index], [field]: value };
@@ -93,7 +161,6 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose }) => {
       setSettings({ ...settings, accommodations: newAcc });
   };
 
-  // Seasons
   const updateSeason = (index: number, field: keyof Season, value: any) => {
     const newSeasons = [...(settings.seasons || [])];
     newSeasons[index] = { ...newSeasons[index], [field]: value };
@@ -116,7 +183,6 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose }) => {
     setSettings({ ...settings, seasons: newSeasons });
   };
 
-  // Instructors
   const addInstructor = () => {
     setSettings({
       ...settings,
@@ -154,13 +220,29 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose }) => {
     updateInstructor(instructorId, 'unavailableDates', newDates);
   };
 
-  // Calendar Helpers
-  const getDaysInMonth = (date: Date) => {
-    const year = date.getFullYear();
-    const month = date.getMonth();
-    const days = new Date(year, month + 1, 0).getDate();
-    const firstDay = new Date(year, month, 1).getDay();
-    return { days, firstDay };
+  // --- CALENDAR RENDERER ---
+  
+  const getMonthsToRender = () => {
+    const start = new Date();
+    start.setDate(1); // 1st of current month
+    
+    // Find furthest booking date
+    let maxDate = new Date();
+    maxDate.setMonth(maxDate.getMonth() + 6); // Default min 6 months
+    
+    bookings.forEach(b => {
+      const d = new Date(b.checkOut);
+      if (d > maxDate) maxDate = d;
+    });
+
+    const months: Date[] = [];
+    const current = new Date(start);
+    
+    while (current <= maxDate) {
+      months.push(new Date(current));
+      current.setMonth(current.getMonth() + 1);
+    }
+    return months;
   };
 
   const renderCalendar = () => {
@@ -169,93 +251,89 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose }) => {
     const instructor = settings.instructors.find(i => i.id === selectedInstructorId);
     if (!instructor) return null;
 
-    const { days, firstDay } = getDaysInMonth(currentMonth);
-    const monthName = currentMonth.toLocaleString('default', { month: 'long', year: 'numeric' });
-    const daysArray = Array.from({ length: days }, (_, i) => i + 1);
-    const emptySlots = Array.from({ length: firstDay }, (_, i) => i);
+    const months = getMonthsToRender();
+    const weekdays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
     return (
-      <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
-        <div className="flex justify-between items-center mb-6">
-          <button 
-            onClick={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1))}
-            className="p-2 hover:bg-gray-100 rounded-full"
-          >
-            <ChevronLeft size={20} />
-          </button>
-          <h3 className="font-bold text-lg text-shark-900">{monthName}</h3>
-          <button 
-             onClick={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1))}
-             className="p-2 hover:bg-gray-100 rounded-full"
-          >
-            <ChevronRight size={20} />
-          </button>
-        </div>
+      <div className="space-y-8">
+        {months.map((monthDate) => {
+          const year = monthDate.getFullYear();
+          const monthIndex = monthDate.getMonth();
+          const daysInMonth = new Date(year, monthIndex + 1, 0).getDate();
+          const daysArray = Array.from({ length: daysInMonth }, (_, i) => i + 1);
 
-        <div className="grid grid-cols-7 gap-2 mb-2">
-          {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(d => (
-            <div key={d} className="text-center text-xs font-bold text-gray-400 uppercase">{d}</div>
-          ))}
-        </div>
+          return (
+            <div key={`${year}-${monthIndex}`} className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+               <h3 className="font-bold text-lg text-shark-900 mb-4 sticky left-0">
+                 {monthDate.toLocaleString('default', { month: 'long', year: 'numeric' })}
+               </h3>
+               
+               <div className="overflow-x-auto pb-4 no-scrollbar">
+                 <div className="inline-grid grid-rows-2 grid-flow-col gap-x-2 gap-y-1">
+                    {/* Render Days */}
+                    {daysArray.map(day => {
+                        const dateObj = new Date(year, monthIndex, day);
+                        const dateStr = `${year}-${String(monthIndex+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+                        const monthAbbr = monthNames[monthIndex];
+                        const dayOfWeek = weekdays[dateObj.getDay()];
+                        
+                        // Check if unavailable (manually set)
+                        const isUnavailable = instructor.unavailableDates.includes(dateStr);
+                        
+                        // Check if booked (assigned to this instructor)
+                        const activeBooking = bookings.find(b => 
+                            b.assignedInstructorId === instructor.id && 
+                            isDateInBooking(dateStr, b)
+                        );
+                        
+                        return (
+                          <React.Fragment key={dateStr}>
+                             {/* ROW 1 CELL: DATE */}
+                             <div 
+                                className={`
+                                  row-start-1 w-16 h-12 flex items-center justify-center text-sm font-bold border rounded-lg cursor-pointer transition-all relative group
+                                  ${activeBooking
+                                    ? 'bg-blue-50 border-blue-300 text-blue-700 hover:bg-blue-100 shadow-sm'
+                                    : isUnavailable 
+                                        ? 'bg-red-50 border-red-300 text-red-600 hover:bg-red-100' 
+                                        : 'bg-white border-gray-200 text-gray-700 hover:border-teal-400 hover:text-teal-600'
+                                  }
+                                `}
+                                onClick={() => {
+                                    if (activeBooking) {
+                                        setSelectedBooking(activeBooking);
+                                    } else {
+                                        toggleAvailability(instructor.id, dateStr);
+                                    }
+                                }}
+                             >
+                                {day}-{monthAbbr}
 
-        <div className="grid grid-cols-7 gap-2">
-          {emptySlots.map(i => <div key={`empty-${i}`} />)}
-          {daysArray.map(day => {
-            // Safe date string construction to avoid timezone issues
-            const year = currentMonth.getFullYear();
-            const month = String(currentMonth.getMonth() + 1).padStart(2, '0');
-            const d = String(day).padStart(2, '0');
-            const dateStr = `${year}-${month}-${d}`;
-            
-            const isUnavailable = instructor.unavailableDates.includes(dateStr);
-            
-            // Check for bookings for this instructor on this date
-            const activeBooking = bookings.find(b => 
-                (b.assignedInstructorId === instructor.id || (!b.assignedInstructorId && instructor.role === 'Course Director')) && // Demo logic: Course Director sees unassigned too? No, keep it strict or demo-able.
-                // Strict: Only assigned bookings
-                b.assignedInstructorId === instructor.id && 
-                isDateInBooking(dateStr, b)
-            );
+                                {/* Tooltip for Bookings */}
+                                {activeBooking && (
+                                    <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 w-48 bg-shark-900 text-white text-xs p-3 rounded shadow-xl pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity z-20 text-center">
+                                        <div className="font-bold text-teal-300 truncate mb-1">{activeBooking.guestName}</div>
+                                        <div className="text-gray-300">{activeBooking.divers} Divers</div>
+                                        <div className="text-gray-400 mt-1 pt-1 border-t border-gray-700">{activeBooking.totalDives} Dives Pkg</div>
+                                    </div>
+                                )}
+                             </div>
 
-            // Special Case for Demo: If no instructor is assigned, show them on everyone's calendar as "Potential" or just ignore?
-            // User request: "dates that are booked for a specific dive package". 
-            // We will render Blue if assigned.
-
-            return (
-              <div 
-                key={day}
-                onClick={() => {
-                    if (activeBooking) {
-                        setSelectedBooking(activeBooking);
-                    } else {
-                        toggleAvailability(instructor.id, dateStr);
-                    }
-                }}
-                className={`
-                  aspect-square rounded-lg flex items-center justify-center text-sm font-medium cursor-pointer transition-all border relative group
-                  ${activeBooking
-                    ? 'bg-blue-50 border-blue-200 text-blue-600 hover:bg-blue-100'
-                    : isUnavailable 
-                        ? 'bg-red-50 border-red-200 text-red-600 hover:bg-red-100' 
-                        : 'bg-white border-gray-100 text-gray-700 hover:bg-teal-50 hover:border-teal-200 hover:text-teal-600'
-                  }
-                `}
-              >
-                {day}
-                
-                {/* Tooltip for Booked Date */}
-                {activeBooking && (
-                    <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 w-40 bg-shark-900 text-white text-xs p-2 rounded shadow-lg pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity z-10 text-center">
-                        <div className="font-bold truncate">{activeBooking.guestName}</div>
-                        <div className="text-gray-300">{activeBooking.divers} Divers</div>
-                    </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
+                             {/* ROW 2 CELL: WEEKDAY */}
+                             <div className="row-start-2 w-16 text-center text-xs font-bold text-gray-400 uppercase pt-1">
+                                {dayOfWeek}
+                             </div>
+                          </React.Fragment>
+                        );
+                    })}
+                 </div>
+               </div>
+            </div>
+          );
+        })}
         
-        <div className="mt-4 flex gap-4 text-xs justify-center">
+        <div className="flex gap-4 text-xs justify-center sticky bottom-0 bg-white/90 backdrop-blur-sm p-4 border-t border-gray-100 rounded-b-xl">
             <div className="flex items-center gap-2">
                 <div className="w-3 h-3 border border-gray-200 bg-white rounded"></div>
                 <span>Available</span>
@@ -284,10 +362,12 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose }) => {
         <nav className="flex-1 p-4 space-y-2">
             {[
                 { id: 'diving', icon: DollarSign, label: 'Dive Pricing' },
+                { id: 'packages', icon: Package, label: 'Dive Packages' },
                 { id: 'accommodation', icon: Hotel, label: 'Accommodation' },
                 { id: 'transfers', icon: Car, label: 'Transfers & Tax' },
                 { id: 'seasons', icon: CalendarRange, label: 'Seasonal Rates' },
                 { id: 'instructors', icon: UserCheck, label: 'Instructor Roster' },
+                { id: 'users', icon: Shield, label: 'User Access' },
             ].map((item) => (
                 <button
                     key={item.id}
@@ -310,19 +390,21 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose }) => {
             <h1 className="text-2xl font-bold text-shark-900 capitalize">{activeTab.replace('-', ' ')} Settings</h1>
             <div className="flex items-center gap-4">
                 {message && <span className="text-green-600 text-sm font-medium animate-fade-in">{message}</span>}
-                <button 
-                    onClick={handleSave}
-                    className="flex items-center gap-2 bg-shark-900 text-white px-6 py-2 rounded-lg hover:bg-shark-800 transition-colors shadow-lg hover:shadow-xl"
-                >
-                    <Save size={18} /> Save Changes
-                </button>
+                {activeTab !== 'users' && (
+                  <button 
+                      onClick={handleSave}
+                      className="flex items-center gap-2 bg-shark-900 text-white px-6 py-2 rounded-lg hover:bg-shark-800 transition-colors shadow-lg hover:shadow-xl"
+                  >
+                      <Save size={18} /> Save Changes
+                  </button>
+                )}
             </div>
         </header>
 
         <div className="flex-1 overflow-auto p-8">
             <div className="max-w-5xl mx-auto space-y-8 pb-12">
                 
-                {/* DIVING TAB */}
+                {/* DIVING PRICING TAB */}
                 {activeTab === 'diving' && (
                     <div className="bg-white p-8 rounded-xl shadow-sm border border-gray-100">
                         <div className="flex justify-between items-center mb-6">
@@ -349,6 +431,151 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose }) => {
                             ))}
                         </div>
                     </div>
+                )}
+
+                {/* USERS TAB */}
+                {activeTab === 'users' && (
+                  <div className="bg-white p-8 rounded-xl shadow-sm border border-gray-100">
+                    <div className="flex justify-between items-center mb-6">
+                        <div>
+                          <h3 className="text-lg font-bold text-gray-800">System Users</h3>
+                          <p className="text-xs text-gray-500">Manage access rights for your team.</p>
+                        </div>
+                        <button onClick={() => handleEditUser()} className="bg-shark-900 text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 hover:bg-shark-800">
+                          <Plus size={16}/> Add User
+                        </button>
+                    </div>
+
+                    <div className="overflow-hidden rounded-lg border border-gray-200">
+                      <table className="w-full text-sm text-left text-gray-500">
+                        <thead className="text-xs text-gray-700 uppercase bg-gray-50">
+                          <tr>
+                            <th className="px-6 py-3">Name</th>
+                            <th className="px-6 py-3">Contact</th>
+                            <th className="px-6 py-3">Role / Rights</th>
+                            <th className="px-6 py-3">Status</th>
+                            <th className="px-6 py-3">Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {users.map((user) => (
+                            <tr key={user.id} className="bg-white border-b hover:bg-gray-50">
+                              <td className="px-6 py-4 font-medium text-shark-900">
+                                <div className="flex items-center gap-3">
+                                  <div className="w-8 h-8 rounded-full bg-shark-100 flex items-center justify-center text-shark-700 font-bold">
+                                    {user.name.charAt(0)}
+                                  </div>
+                                  {user.name}
+                                </div>
+                              </td>
+                              <td className="px-6 py-4 space-y-1">
+                                <div className="flex items-center gap-2 text-xs"><Mail size={12}/> {user.email}</div>
+                                <div className="flex items-center gap-2 text-xs"><Phone size={12}/> {user.phone}</div>
+                              </td>
+                              <td className="px-6 py-4">
+                                <span className={`px-2 py-1 rounded text-xs font-bold 
+                                  ${user.role === 'ADMIN' ? 'bg-purple-100 text-purple-700' : 
+                                    user.role === 'MANAGER' ? 'bg-blue-100 text-blue-700' : 'bg-green-100 text-green-700'}`}>
+                                  {user.role}
+                                </span>
+                              </td>
+                              <td className="px-6 py-4">
+                                <span className={`flex items-center gap-1 text-xs font-bold ${user.status === 'ACTIVE' ? 'text-green-600' : 'text-gray-400'}`}>
+                                  <div className={`w-2 h-2 rounded-full ${user.status === 'ACTIVE' ? 'bg-green-500' : 'bg-gray-400'}`}></div>
+                                  {user.status}
+                                </span>
+                              </td>
+                              <td className="px-6 py-4">
+                                <div className="flex gap-2">
+                                  <button onClick={() => handleEditUser(user)} className="text-blue-600 hover:underline">Edit</button>
+                                  <button onClick={() => handleDeleteUser(user.id)} className="text-red-500 hover:underline">Delete</button>
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+
+                {/* PACKAGES TAB */}
+                {activeTab === 'packages' && (
+                  <div className="space-y-6">
+                    <div className="bg-blue-50 border border-blue-100 p-4 rounded-lg flex items-start gap-3">
+                      <Info className="text-blue-600 shrink-0 mt-1" size={18} />
+                      <p className="text-sm text-blue-800">
+                        Define marketing packages here. These presets allow you to showcase recommended itineraries.
+                        The price set here is the <strong>displayed package price</strong> and can be independent of the tiered calculation logic.
+                      </p>
+                    </div>
+
+                    <div className="grid grid-cols-1 gap-6">
+                      {(settings.packages || []).map((pkg, idx) => (
+                        <div key={pkg.id} className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 relative group">
+                          <button onClick={() => removePackage(idx)} className="absolute top-4 right-4 text-gray-300 hover:text-red-500"><Trash2 size={20} /></button>
+                          
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            {/* Left: Basic Info */}
+                            <div className="space-y-4">
+                              <div>
+                                <label className="text-xs font-bold text-gray-500 uppercase">Package Name</label>
+                                <input 
+                                  type="text" 
+                                  value={pkg.name} 
+                                  onChange={(e) => updatePackage(idx, 'name', e.target.value)} 
+                                  className="w-full border rounded p-2 mt-1 font-bold text-lg text-shark-900" 
+                                />
+                              </div>
+                              <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                  <label className="text-xs font-bold text-gray-500 uppercase">Total Dives</label>
+                                  <input 
+                                    type="number" 
+                                    value={pkg.dives} 
+                                    onChange={(e) => updatePackage(idx, 'dives', parseInt(e.target.value))} 
+                                    className="w-full border rounded p-2 mt-1" 
+                                  />
+                                </div>
+                                <div>
+                                  <label className="text-xs font-bold text-gray-500 uppercase">Total Price ($)</label>
+                                  <input 
+                                    type="number" 
+                                    value={pkg.price} 
+                                    onChange={(e) => updatePackage(idx, 'price', parseInt(e.target.value))} 
+                                    className="w-full border rounded p-2 mt-1 font-bold text-teal-600" 
+                                  />
+                                </div>
+                              </div>
+                              <div>
+                                <label className="text-xs font-bold text-gray-500 uppercase">Description</label>
+                                <textarea 
+                                  value={pkg.description} 
+                                  onChange={(e) => updatePackage(idx, 'description', e.target.value)} 
+                                  className="w-full border rounded p-2 mt-1 text-sm h-20" 
+                                />
+                              </div>
+                            </div>
+                            
+                            {/* Right: Features */}
+                            <div className="bg-gray-50 p-4 rounded-lg">
+                              <label className="text-xs font-bold text-gray-500 uppercase mb-2 block">Features (one per line)</label>
+                              <textarea
+                                value={pkg.features.join('\n')}
+                                onChange={(e) => updatePackage(idx, 'features', e.target.value.split('\n'))}
+                                className="w-full h-40 border rounded p-2 text-sm font-mono leading-relaxed"
+                                placeholder="Free Nitrox&#10;Equipment Included&#10;Guide"
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+
+                    <button onClick={addPackage} className="w-full py-4 border-2 border-dashed border-gray-300 rounded-xl text-gray-500 hover:border-teal-500 hover:text-teal-600 font-bold transition-all flex items-center justify-center gap-2">
+                        <Plus size={20} /> Add New Package
+                    </button>
+                  </div>
                 )}
 
                 {/* ACCOMMODATION TAB */}
@@ -548,7 +775,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose }) => {
                             </div>
                         </div>
 
-                        {/* Availability Calendar */}
+                        {/* Availability Calendar (HORIZONTAL) */}
                         <div className="lg:col-span-2">
                             {selectedInstructorId ? (
                                 <div className="space-y-6">
@@ -586,7 +813,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose }) => {
                                         
                                         <div className="flex-1 p-3 bg-blue-50 border border-blue-100 rounded-lg text-xs text-blue-800">
                                             <div className="font-bold mb-1 flex items-center gap-1"><Info size={12}/> Booking Integration</div>
-                                            When a booking is assigned to this instructor, dates will appear <span className="text-blue-600 font-bold">Blue</span>. Click them to view details.
+                                            Dates with active bookings are <span className="text-blue-600 font-bold">Blue</span>. Click to view guest details.
                                         </div>
                                     </div>
                                     
@@ -606,6 +833,106 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose }) => {
         </div>
       </div>
       
+      {/* User Edit Modal */}
+      {isUserModalOpen && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6 animate-fade-in-up">
+            <h2 className="text-xl font-bold text-shark-900 mb-6">{editingUser.id ? 'Edit User' : 'Add New User'}</h2>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="text-xs font-bold text-gray-500 uppercase">Full Name</label>
+                <input 
+                  className="w-full border rounded p-3 mt-1" 
+                  value={editingUser.name || ''} 
+                  onChange={(e) => setEditingUser({...editingUser, name: e.target.value})}
+                  placeholder="e.g. Sarah Smith"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-bold text-gray-500 uppercase">Email Address</label>
+                <input 
+                  className="w-full border rounded p-3 mt-1" 
+                  value={editingUser.email || ''} 
+                  onChange={(e) => setEditingUser({...editingUser, email: e.target.value})}
+                  placeholder="e.g. sarah@sharkisland.com"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-bold text-gray-500 uppercase">Phone Number</label>
+                <input 
+                  className="w-full border rounded p-3 mt-1" 
+                  value={editingUser.phone || ''} 
+                  onChange={(e) => setEditingUser({...editingUser, phone: e.target.value})}
+                  placeholder="e.g. +960 777 0000"
+                />
+              </div>
+              
+              <div className="grid grid-cols-1 gap-4">
+                <div>
+                   <label className="text-xs font-bold text-gray-500 uppercase">Role</label>
+                   <select 
+                      className="w-full border rounded p-3 mt-1 bg-white"
+                      value={editingUser.role || 'STAFF'}
+                      onChange={(e) => setEditingUser({...editingUser, role: e.target.value as any})}
+                   >
+                      <option value="STAFF">Staff - View Only</option>
+                      <option value="MANAGER">Manager - Operations & Guests</option>
+                      <option value="ADMIN">Admin - Full Access</option>
+                   </select>
+                </div>
+                 <div>
+                   <label className="text-xs font-bold text-gray-500 uppercase">Status</label>
+                   <select 
+                      className="w-full border rounded p-3 mt-1 bg-white"
+                      value={editingUser.status || 'ACTIVE'}
+                      onChange={(e) => setEditingUser({...editingUser, status: e.target.value as any})}
+                   >
+                      <option value="ACTIVE">Active</option>
+                      <option value="INACTIVE">Inactive</option>
+                   </select>
+                </div>
+              </div>
+
+              {/* Explicit Rights Visualization */}
+              <div className="bg-gray-50 p-4 rounded-lg border border-gray-200 mt-4">
+                <h4 className="text-xs font-bold text-gray-500 uppercase mb-3 flex items-center gap-2">
+                    <Shield size={14}/> Assigned Rights
+                </h4>
+                <div className="space-y-2">
+                    {editingUser.role === 'ADMIN' && (
+                        <>
+                            <div className="flex items-start gap-2 text-sm text-shark-900"><Check size={16} className="text-teal-600 shrink-0 mt-0.5"/> <span>Full System Configuration</span></div>
+                            <div className="flex items-start gap-2 text-sm text-shark-900"><Check size={16} className="text-teal-600 shrink-0 mt-0.5"/> <span>User Management & Roles</span></div>
+                            <div className="flex items-start gap-2 text-sm text-shark-900"><Check size={16} className="text-teal-600 shrink-0 mt-0.5"/> <span>Financial Access</span></div>
+                        </>
+                    )}
+                    {editingUser.role === 'MANAGER' && (
+                        <>
+                            <div className="flex items-start gap-2 text-sm text-shark-900"><Check size={16} className="text-teal-600 shrink-0 mt-0.5"/> <span>Manage Operations & Staff</span></div>
+                            <div className="flex items-start gap-2 text-sm text-shark-900"><Check size={16} className="text-teal-600 shrink-0 mt-0.5"/> <span>Guest CRM Access</span></div>
+                             <div className="flex items-start gap-2 text-sm text-gray-400"><X size={16} className="shrink-0 mt-0.5"/> <span>System Settings Restricted</span></div>
+                        </>
+                    )}
+                    {(editingUser.role === 'STAFF' || !editingUser.role) && (
+                        <>
+                            <div className="flex items-start gap-2 text-sm text-shark-900"><Check size={16} className="text-teal-600 shrink-0 mt-0.5"/> <span>View Schedule & Rosters</span></div>
+                            <div className="flex items-start gap-2 text-sm text-gray-400"><X size={16} className="shrink-0 mt-0.5"/> <span>No Edit Access</span></div>
+                        </>
+                    )}
+                </div>
+              </div>
+
+            </div>
+
+            <div className="flex gap-4 mt-8">
+              <button onClick={() => setIsUserModalOpen(false)} className="px-4 py-2 text-gray-500 font-bold hover:bg-gray-100 rounded">Cancel</button>
+              <button onClick={handleSaveUser} className="flex-1 bg-shark-900 text-white py-2 rounded font-bold hover:bg-shark-800">Save User</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Booking Detail Modal */}
       {selectedBooking && (
           <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">

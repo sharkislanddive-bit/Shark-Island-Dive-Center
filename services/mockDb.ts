@@ -1,8 +1,9 @@
 
-import { GuestProfile, DailyEvent, Staff } from '../types';
+import { GuestProfile, DailyEvent, Staff, SystemUser } from '../types';
 
 const GUEST_KEY = 'sidc_guests';
 const EVENT_KEY = 'sidc_events';
+const USER_KEY = 'sidc_users';
 
 // Initial Mock Data
 const MOCK_GUESTS: GuestProfile[] = [
@@ -55,6 +56,27 @@ const MOCK_EVENTS: DailyEvent[] = [
   }
 ];
 
+const MOCK_USERS: SystemUser[] = [
+  {
+    id: 'u1',
+    name: 'Lonu',
+    email: 'lonu@sharkislanddive.com',
+    phone: '+960 778 6655',
+    role: 'ADMIN',
+    status: 'ACTIVE',
+    lastLogin: '2024-05-20'
+  },
+  {
+    id: 'u2',
+    name: 'Reservations Team',
+    email: 'bookings@sharkislanddive.com',
+    phone: '+960 778 1234',
+    role: 'MANAGER',
+    status: 'ACTIVE',
+    lastLogin: '2024-05-19'
+  }
+];
+
 // --- GUESTS ---
 export const getGuests = (): GuestProfile[] => {
   const stored = localStorage.getItem(GUEST_KEY);
@@ -89,4 +111,26 @@ export const saveEvent = (event: DailyEvent) => {
 
 export const getEventsForDate = (dateStr: string): DailyEvent[] => {
   return getEvents().filter(e => e.date === dateStr);
+};
+
+// --- SYSTEM USERS ---
+export const getUsers = (): SystemUser[] => {
+  const stored = localStorage.getItem(USER_KEY);
+  if (stored) return JSON.parse(stored);
+  localStorage.setItem(USER_KEY, JSON.stringify(MOCK_USERS));
+  return MOCK_USERS;
+};
+
+export const saveUser = (user: SystemUser) => {
+  const users = getUsers();
+  const idx = users.findIndex(u => u.id === user.id);
+  if (idx >= 0) users[idx] = user;
+  else users.push(user);
+  localStorage.setItem(USER_KEY, JSON.stringify(users));
+};
+
+export const deleteUser = (userId: string) => {
+  let users = getUsers();
+  users = users.filter(u => u.id !== userId);
+  localStorage.setItem(USER_KEY, JSON.stringify(users));
 };

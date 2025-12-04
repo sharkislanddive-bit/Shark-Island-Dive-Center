@@ -39,8 +39,18 @@ export interface Instructor {
   imageUrl?: string;
 }
 
+export interface DivePackage {
+  id: string;
+  name: string;
+  dives: number;
+  price: number;
+  description: string;
+  features: string[];
+}
+
 export interface PricingSettings {
   diveTiers: DiveTier[];
+  packages: DivePackage[]; // New field
   accommodations: Accommodation[];
   seasons: Season[];
   instructors: Instructor[]; // New field
@@ -125,4 +135,18 @@ export interface Staff {
   role: string;
   imageUrl: string;
   status: 'Active' | 'On Leave';
+}
+
+// --- USER MANAGEMENT TYPES ---
+
+export type SystemRole = 'ADMIN' | 'MANAGER' | 'STAFF';
+
+export interface SystemUser {
+  id: string;
+  name: string;
+  email: string;
+  phone: string;
+  role: SystemRole;
+  status: 'ACTIVE' | 'INACTIVE';
+  lastLogin?: string;
 }

@@ -1,15 +1,40 @@
-import React, { useState } from 'react';
-import { ViewState } from './types';
+
+import React, { useState, useEffect } from 'react';
+import { ViewState, SystemUser } from './types';
 import { Sidebar } from './components/Sidebar';
 import { DashboardHome } from './components/DashboardHome';
 import { GuestDirectory } from './components/GuestDirectory';
 import { OperationsView } from './components/OperationsView';
 import { BookingEngine } from './components/BookingEngine';
 import { AdminPanel } from './components/AdminPanel';
+import { LoginScreen } from './components/LoginScreen';
 
 const App: React.FC = () => {
-  // Default to Home (Dashboard) instead of Booking
+  const [user, setUser] = useState<SystemUser | null>(null);
   const [currentView, setCurrentView] = useState<ViewState>(ViewState.HOME);
+
+  // Optional: Check local storage for persisted session
+  useEffect(() => {
+    const savedUser = localStorage.getItem('sidc_session_user');
+    if (savedUser) {
+      try {
+        setUser(JSON.parse(savedUser));
+      } catch (e) {
+        localStorage.removeItem('sidc_session_user');
+      }
+    }
+  }, []);
+
+  const handleLogin = (loggedInUser: SystemUser) => {
+    setUser(loggedInUser);
+    localStorage.setItem('sidc_session_user', JSON.stringify(loggedInUser));
+  };
+
+  const handleLogout = () => {
+    setUser(null);
+    localStorage.removeItem('sidc_session_user');
+    setCurrentView(ViewState.HOME); // Reset view on logout
+  };
 
   const renderContent = () => {
     switch (currentView) {
@@ -35,17 +60,24 @@ const App: React.FC = () => {
     }
   };
 
+  if (!user) {
+    return <LoginScreen onLogin={handleLogin} />;
+  }
+
   return (
     <div className="min-h-screen bg-gray-50 flex font-sans text-slate-900">
       {/* Sidebar Navigation */}
-      <Sidebar currentView={currentView} onNavigate={setCurrentView} />
+      <Sidebar 
+        currentView={currentView} 
+        onNavigate={setCurrentView} 
+        currentUser={user}
+        onLogout={handleLogout}
+      />
 
       {/* Main Content Area */}
       <main className="flex-1 ml-64 min-h-screen overflow-y-auto">
         {renderContent()}
       </main>
-
-      {/* Footer is hidden in Dashboard mode or can be a small copyright at bottom */}
     </div>
   );
 };
