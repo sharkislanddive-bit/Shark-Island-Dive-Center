@@ -9,7 +9,7 @@ interface LoginScreenProps {
 }
 
 export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
-  const [email, setEmail] = useState('lonu@sharkislanddive.com'); // Default for demo convenience
+  const [email, setEmail] = useState(''); 
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
@@ -22,10 +22,9 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
     // Simulate network delay
     setTimeout(() => {
       const users = getUsers();
-      // Simple auth check: email must match a user in the system. 
-      // Password check is simulated (accepts 'shark123' or empty for demo simplicity if we want, 
-      // but let's strictly check email existence).
-      const user = users.find(u => u.email.toLowerCase() === email.toLowerCase());
+      // Auth check
+      const inputId = email.trim();
+      const user = users.find(u => u.email.toLowerCase() === inputId.toLowerCase());
 
       if (user) {
         if (user.status === 'INACTIVE') {
@@ -33,12 +32,20 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
            setIsLoading(false);
            return;
         }
+
+        // Specific password check for Admin
+        if (inputId === 'Admin' && password !== 'admin') {
+            setError('Invalid password.');
+            setIsLoading(false);
+            return;
+        }
+
         onLogin(user);
       } else {
-        setError('Invalid credentials. Try lonu@sharkislanddive.com');
+        setError('Invalid credentials.');
         setIsLoading(false);
       }
-    }, 1000);
+    }, 800);
   };
 
   return (
@@ -58,14 +65,14 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
 
           <form onSubmit={handleLogin} className="space-y-6">
              <div>
-                <label className="block text-xs font-bold text-shark-300 uppercase mb-2">Email Address</label>
+                <label className="block text-xs font-bold text-shark-300 uppercase mb-2">Email or Username</label>
                 <input 
-                  type="email"
+                  type="text"
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   className="w-full bg-shark-900/50 border border-shark-700 rounded-xl px-4 py-3 text-white placeholder-shark-600 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent transition-all"
-                  placeholder="user@sharkisland.com"
+                  placeholder="Admin or email address"
                 />
              </div>
              

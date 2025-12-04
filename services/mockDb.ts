@@ -58,6 +58,15 @@ const MOCK_EVENTS: DailyEvent[] = [
 
 const MOCK_USERS: SystemUser[] = [
   {
+    id: 'admin_root',
+    name: 'Administrator',
+    email: 'Admin', // Username 'Admin' stored in email field
+    phone: '',
+    role: 'ADMIN',
+    status: 'ACTIVE',
+    lastLogin: new Date().toISOString()
+  },
+  {
     id: 'u1',
     name: 'Lonu',
     email: 'lonu@sharkislanddive.com',
