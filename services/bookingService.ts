@@ -30,7 +30,13 @@ export const getBookingById = (id: string): Booking | undefined => {
   return getBookings().find(b => b.id === id);
 };
 
-// Helper to check if a date string falls within a booking's range
+// Helper to check if a date string falls within a booking's range (Inclusive of checkout)
 export const isDateInBooking = (dateStr: string, booking: Booking): boolean => {
   return dateStr >= booking.checkIn && dateStr <= booking.checkOut;
+};
+
+// Helper to check if a date is an active DIVING day (CheckIn to CheckOut - 1 day)
+// Guests typically don't dive on checkout day due to flight intervals
+export const isDiveDate = (dateStr: string, booking: Booking): boolean => {
+  return dateStr >= booking.checkIn && dateStr < booking.checkOut;
 };

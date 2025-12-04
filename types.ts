@@ -122,7 +122,7 @@ export interface DailyEvent {
   date: string;
   time: string;
   title: string;
-  type: 'Morning Dive' | 'Tiger Zoo' | 'Afternoon Dive' | 'Night Dive' | 'Theory';
+  type: 'Morning Dive' | 'Tiger Zoo' | 'Reef Dive' | 'Afternoon Dive' | 'Night Dive' | 'Theory';
   boat: 'Shark One' | 'Shark Two' | 'Classroom';
   staffIds: string[];
   guestCount: number;

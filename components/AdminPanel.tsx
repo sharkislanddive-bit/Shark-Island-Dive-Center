@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { PricingSettings, DiveTier, Accommodation, Season, Instructor, Booking, DivePackage, SystemUser, SystemRole } from '../types';
 import { getSettings, saveSettings } from '../services/settingsService';
-import { getBookings, isDateInBooking, saveBooking } from '../services/bookingService';
+import { getBookings, isDateInBooking, saveBooking, isDiveDate } from '../services/bookingService';
 import { getUsers, saveUser, deleteUser } from '../services/mockDb';
 import { Save, Plus, Trash2, DollarSign, Hotel, Plane, CalendarRange, Car, UserCheck, Calendar, X, ChevronLeft, ChevronRight, User, Leaf, Info, Package, Shield, Mail, Phone, Check } from 'lucide-react';
 
@@ -282,9 +282,10 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose }) => {
                         const isUnavailable = instructor.unavailableDates.includes(dateStr);
                         
                         // Check if booked (assigned to this instructor)
+                        // Using isDiveDate to exclude the checkout day from being blocked
                         const activeBooking = bookings.find(b => 
                             b.assignedInstructorId === instructor.id && 
-                            isDateInBooking(dateStr, b)
+                            isDiveDate(dateStr, b)
                         );
                         
                         return (
@@ -344,7 +345,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose }) => {
             </div>
              <div className="flex items-center gap-2">
                 <div className="w-3 h-3 bg-blue-50 border border-blue-200 rounded"></div>
-                <span>Booked</span>
+                <span>Booked (Assigned)</span>
             </div>
         </div>
       </div>
@@ -960,8 +961,10 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose }) => {
                               <div className="font-bold text-gray-800">{selectedBooking.divers} Divers, {selectedBooking.nonDivers} Non</div>
                           </div>
                            <div>
-                              <div className="text-gray-400 text-xs uppercase">Total Cost</div>
-                              <div className="font-bold text-teal-600">${selectedBooking.grandTotal.toLocaleString()}</div>
+                              <div className="text-gray-400 text-xs uppercase">Package</div>
+                              <div className="font-bold text-teal-600">
+                                  {selectedBooking.totalDives} Dives/Pax
+                              </div>
                           </div>
                       </div>
                       
@@ -989,7 +992,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose }) => {
                       <div className="bg-gray-50 p-4 rounded-lg text-xs text-gray-500 space-y-1">
                           <div><strong>Email:</strong> {selectedBooking.email}</div>
                           <div><strong>WhatsApp:</strong> {selectedBooking.whatsapp}</div>
-                          <div><strong>Payment:</strong> {selectedBooking.paymentMethod}</div>
+                          <div><strong>Total Cost:</strong> ${selectedBooking.grandTotal.toLocaleString()}</div>
                       </div>
                   </div>
               </div>

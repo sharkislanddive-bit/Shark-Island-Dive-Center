@@ -1,18 +1,8 @@
-
 import React, { useState, useEffect } from 'react';
-import { Calendar, Clock, Anchor, Plus, ChevronLeft, ChevronRight, MapPin, Users, ClipboardList, X, Save } from 'lucide-react';
-import { getEvents, saveEvent } from '../services/mockDb';
+import { Calendar, Clock, Anchor, Plus, ChevronLeft, ChevronRight, MapPin, Users, ClipboardList, X, Save, Edit3, AlertTriangle } from 'lucide-react';
+import { getEventsForDate, saveEvent } from '../services/mockDb';
 import { getBookings, isDateInBooking } from '../services/bookingService';
 import { DailyEvent, Booking } from '../types';
-
-interface EventDraft {
-  date: string;
-  time: string;
-  title: string;
-  type: DailyEvent['type'];
-  boat: DailyEvent['boat'];
-  guestCount: number;
-}
 
 export const OperationsView: React.FC = () => {
   const [events, setEvents] = useState<DailyEvent[]>([]);
@@ -20,42 +10,31 @@ export const OperationsView: React.FC = () => {
   const [viewMode, setViewMode] = useState<'daily' | 'monthly'>('monthly');
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   
+  // Constants
+  const MAX_BOAT_CAPACITY = 12;
+
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [eventDraft, setEventDraft] = useState<EventDraft>({
-    date: new Date().toISOString().split('T')[0],
-    time: '08:30',
-    title: 'Tiger Zoo',
-    type: 'Tiger Zoo',
-    boat: 'Shark One',
-    guestCount: 0
-  });
+  const [editingEvent, setEditingEvent] = useState<DailyEvent | null>(null);
 
   useEffect(() => {
-    setEvents(getEvents());
+    // When date changes, we ensure slots exist and fetch them
+    setEvents(getEventsForDate(selectedDate));
     setBookings(getBookings());
-  }, []);
+  }, [selectedDate]);
 
-  const handleOpenModal = (date?: string, boat?: DailyEvent['boat']) => {
-    setEventDraft({
-      ...eventDraft,
-      date: date || selectedDate,
-      boat: boat || 'Shark One',
-      guestCount: 0
-    });
+  const handleEditEvent = (event: DailyEvent) => {
+    setEditingEvent({ ...event });
     setIsModalOpen(true);
   };
 
   const handleSaveEvent = () => {
-    const newEvent: DailyEvent = {
-        id: `evt-${Date.now()}`,
-        ...eventDraft,
-        staffIds: [], // To be assigned later
-        notes: ''
-    };
-    saveEvent(newEvent);
-    setEvents(getEvents()); // Refresh
-    setIsModalOpen(false);
+    if (editingEvent) {
+        saveEvent(editingEvent);
+        setEvents(getEventsForDate(selectedDate)); // Refresh
+        setIsModalOpen(false);
+        setEditingEvent(null);
+    }
   };
 
   // --- CALENDAR LOGIC ---
@@ -142,71 +121,40 @@ export const OperationsView: React.FC = () => {
 
                     {/* Row 3: Event & Demand Content */}
                     {daysArray.map(day => {
-                        const dateStr = `${year}-${String(monthIndex+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
-                        const dayEvents = events.filter(e => e.date === dateStr);
+                         const dateStr = `${year}-${String(monthIndex+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+                         // We don't fetch individual events here for performance in big views, 
+                         // but we calculate demand.
                         
                         // Demand Calculation: Sum of divers from bookings active on this date
                         const activeBookings = bookings.filter(b => isDateInBooking(dateStr, b));
                         const bookedDivers = activeBookings.reduce((sum, b) => sum + b.divers, 0);
-                        const scheduledSeats = dayEvents.reduce((sum, e) => sum + e.guestCount, 0);
 
-                        // Capacity Status
-                        const isOverbooked = bookedDivers > scheduledSeats; 
-                        
                         return (
                             <div 
                                 key={`content-${day}`} 
-                                className="min-h-[180px] border-r border-gray-100 p-2 space-y-2 hover:bg-gray-50 transition-colors cursor-pointer flex flex-col group relative"
+                                className="min-h-[120px] border-r border-gray-100 p-2 space-y-2 hover:bg-gray-50 transition-colors cursor-pointer flex flex-col group relative"
                                 onClick={() => {
                                     setSelectedDate(dateStr);
                                     setViewMode('daily');
                                 }}
                             >
-                                {/* Quick Add Button (Hidden by default, visible on hover) */}
-                                <button 
-                                    onClick={(e) => { e.stopPropagation(); handleOpenModal(dateStr); }}
-                                    className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 z-10 bg-shark-900 text-white p-1 rounded-full hover:scale-110 transition-all shadow-md"
-                                    title="Add Trip"
-                                >
-                                    <Plus size={12} />
-                                </button>
-
                                 {/* Demand Bar */}
                                 {bookedDivers > 0 && (
-                                    <div className={`text-[10px] font-bold px-2 py-1 rounded flex justify-between items-center mb-1 ${isOverbooked ? 'bg-red-100 text-red-700' : 'bg-teal-50 text-teal-700'}`}>
-                                        <span className="flex items-center gap-1"><Users size={10}/> Demand</span>
+                                    <div className={`text-[10px] font-bold px-2 py-1 rounded flex justify-between items-center mb-1 ${bookedDivers > MAX_BOAT_CAPACITY ? 'bg-red-100 text-red-700' : 'bg-teal-50 text-teal-700'}`}>
+                                        <span className="flex items-center gap-1"><Users size={10}/> Pax</span>
                                         <span>{bookedDivers}</span>
                                     </div>
                                 )}
-
-                                {/* Events */}
-                                {dayEvents.length === 0 ? (
-                                    bookedDivers > 0 ? (
-                                        <div className="flex-1 flex flex-col items-center justify-center text-red-300 text-xs text-center p-2 border border-dashed border-red-200 rounded">
-                                            <Anchor size={16} className="mb-1"/>
-                                            <span>Needs Trip</span>
-                                        </div>
-                                    ) : (
-                                        <div className="flex-1"></div>
-                                    )
-                                ) : (
-                                    dayEvents.map(evt => (
-                                        <div 
-                                            key={evt.id} 
-                                            className={`p-1.5 rounded text-xs border shadow-sm ${
-                                                evt.type === 'Tiger Zoo' ? 'bg-orange-50 border-orange-200 text-orange-800' : 
-                                                evt.type.includes('Night') ? 'bg-indigo-50 border-indigo-200 text-indigo-800' :
-                                                'bg-blue-50 border-blue-200 text-blue-800'
-                                            }`}
-                                        >
-                                            <div className="font-bold truncate leading-tight">{evt.time} {evt.title}</div>
-                                            <div className="flex justify-between mt-1 opacity-75 text-[10px]">
-                                                <span>{evt.boat === 'Shark One' ? 'S1' : 'S2'}</span>
-                                                <span>{evt.guestCount}pax</span>
-                                            </div>
-                                        </div>
-                                    ))
-                                )}
+                                
+                                {/* Static Indicator of Standard Schedule */}
+                                <div className="space-y-1 opacity-60">
+                                    <div className="h-1.5 w-full bg-orange-200 rounded-full"></div>
+                                    <div className="h-1.5 w-2/3 bg-blue-200 rounded-full"></div>
+                                    <div className="h-1.5 w-2/3 bg-blue-200 rounded-full"></div>
+                                </div>
+                                <div className="mt-auto text-[10px] text-center text-gray-400 group-hover:text-teal-600 font-bold">
+                                    View Schedule
+                                </div>
                             </div>
                         );
                     })}
@@ -220,15 +168,86 @@ export const OperationsView: React.FC = () => {
   };
 
   const renderDailyView = () => {
-    const dayEvents = events.filter(e => e.date === selectedDate);
-    const boats: DailyEvent['boat'][] = ['Shark One', 'Shark Two'];
+    // Sort events by time
+    const sortedEvents = [...events].sort((a, b) => a.time.localeCompare(b.time));
     const activeBookings = bookings.filter(b => isDateInBooking(selectedDate, b));
     const totalBookedPax = activeBookings.reduce((sum, b) => sum + b.divers, 0);
 
     return (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 h-[calc(100vh-200px)]">
-            {/* Daily Manifest Sidebar */}
-            <div className="lg:col-span-1 bg-white rounded-2xl shadow-sm border border-gray-100 flex flex-col">
+            
+            {/* LEFT: Daily Master Schedule */}
+            <div className="lg:col-span-2 overflow-y-auto">
+                <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden flex flex-col min-h-[500px]">
+                    <div className="bg-shark-50 p-6 border-b border-gray-100 flex items-center justify-between">
+                         <div>
+                            <h3 className="font-bold text-shark-900 text-lg flex items-center gap-2">
+                                <Anchor size={20} className="text-teal-600"/> Daily Dive Plan
+                            </h3>
+                            <p className="text-xs text-gray-500 mt-1">
+                                1 Guaranteed Tiger Zoo + 2 Reef Dives. Click to update site & time.
+                            </p>
+                         </div>
+                    </div>
+
+                    <div className="p-6 space-y-6">
+                        {sortedEvents.map((evt) => (
+                            <div 
+                                key={evt.id} 
+                                onClick={() => handleEditEvent(evt)}
+                                className={`
+                                    relative border rounded-xl p-6 transition-all cursor-pointer group hover:shadow-md
+                                    ${evt.type === 'Tiger Zoo' ? 'bg-orange-50/30 border-orange-100 hover:border-orange-300' : 'bg-white border-gray-100 hover:border-blue-300'}
+                                    ${evt.guestCount > MAX_BOAT_CAPACITY ? 'border-red-300 bg-red-50/50' : ''}
+                                `}
+                            >
+                                <div className="flex justify-between items-start">
+                                    <div className="flex items-start gap-4">
+                                        <div className={`
+                                            w-16 h-16 rounded-xl flex flex-col items-center justify-center font-bold text-sm shrink-0
+                                            ${evt.type === 'Tiger Zoo' ? 'bg-orange-100 text-orange-700' : 'bg-blue-100 text-blue-700'}
+                                        `}>
+                                            <Clock size={18} className="mb-1"/>
+                                            {evt.time}
+                                        </div>
+                                        <div>
+                                            <div className="flex items-center gap-2">
+                                                <h4 className="text-lg font-bold text-shark-900">{evt.title}</h4>
+                                                <Edit3 size={14} className="text-gray-300 group-hover:text-teal-500 transition-colors"/>
+                                            </div>
+                                            <div className="flex items-center gap-3 text-sm text-gray-500 mt-1">
+                                                <span className="flex items-center gap-1"><Anchor size={14}/> {evt.boat}</span>
+                                                <span className={`flex items-center gap-1 ${evt.guestCount > MAX_BOAT_CAPACITY ? 'text-red-600 font-bold' : ''}`}>
+                                                    <Users size={14}/> {evt.guestCount} Pax Assigned
+                                                </span>
+                                            </div>
+                                            
+                                            {evt.guestCount > MAX_BOAT_CAPACITY && (
+                                                <div className="bg-red-100 text-red-700 text-xs p-2 rounded mt-2 font-bold flex items-center gap-2">
+                                                    <AlertTriangle size={14}/>
+                                                    Over Capacity ({evt.guestCount}/12)! Hire 2nd Boat.
+                                                </div>
+                                            )}
+
+                                            {evt.type === 'Reef Dive' && evt.title.includes('TBD') && (
+                                                <div className="text-xs text-red-500 font-bold mt-2 animate-pulse">
+                                                    ⚠ Update Dive Site Name
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                    <div className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide ${evt.type === 'Tiger Zoo' ? 'bg-orange-100 text-orange-800' : 'bg-blue-50 text-blue-600'}`}>
+                                        {evt.type}
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            </div>
+
+            {/* RIGHT: Daily Manifest Sidebar */}
+            <div className="lg:col-span-1 bg-white rounded-2xl shadow-sm border border-gray-100 flex flex-col h-[500px]">
                 <div className="p-4 border-b border-gray-100 bg-shark-50">
                     <h3 className="font-bold text-shark-900 flex items-center gap-2">
                         <ClipboardList size={18} className="text-teal-600"/> Daily Manifest
@@ -260,60 +279,6 @@ export const OperationsView: React.FC = () => {
                     )}
                 </div>
             </div>
-
-            {/* Boat Schedule */}
-            <div className="lg:col-span-2 overflow-y-auto">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {boats.map(boat => (
-                        <div key={boat} className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden flex flex-col">
-                            <div className="bg-shark-50 p-4 border-b border-gray-100 flex items-center justify-between">
-                                <div className="flex items-center gap-2 font-bold text-shark-900">
-                                    <Anchor size={18} className="text-teal-600"/> {boat}
-                                </div>
-                                <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full font-bold">Operational</span>
-                            </div>
-                            <div className="p-4 space-y-4 flex-1">
-                                {dayEvents.filter(e => e.boat === boat).length === 0 ? (
-                                    <div className="text-center text-gray-400 py-8 text-sm border-2 border-dashed border-gray-100 rounded-xl">
-                                        No trips planned yet.
-                                    </div>
-                                ) : (
-                                    dayEvents.filter(e => e.boat === boat).map(evt => (
-                                        <div key={evt.id} className="border border-gray-200 rounded-xl p-4 hover:shadow-md transition-shadow relative overflow-hidden group bg-white">
-                                            <div className={`absolute left-0 top-0 bottom-0 w-1 ${evt.type === 'Tiger Zoo' ? 'bg-orange-500' : 'bg-blue-500'}`}></div>
-                                            <div className="flex justify-between items-start mb-2 pl-2">
-                                                <h4 className="font-bold text-shark-900">{evt.title}</h4>
-                                                <span className="text-xs font-mono bg-gray-100 px-2 py-1 rounded text-shark-600">{evt.time}</span>
-                                            </div>
-                                            <div className="pl-2 space-y-2 text-sm text-gray-600">
-                                                <div className="flex items-center gap-2">
-                                                    <Users size={14}/> {evt.guestCount} / 12 Capacity
-                                                </div>
-                                                <div className="flex items-center gap-2">
-                                                    <div className="flex -space-x-2">
-                                                        {evt.staffIds.map((sid, i) => (
-                                                            <div key={i} className="w-6 h-6 rounded-full bg-gray-200 border-2 border-white flex items-center justify-center text-[8px] font-bold text-gray-600">
-                                                                {sid.charAt(0).toUpperCase()}
-                                                            </div>
-                                                        ))}
-                                                    </div>
-                                                    <span className="text-xs">Crew</span>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    ))
-                                )}
-                                <button 
-                                    onClick={() => handleOpenModal(selectedDate, boat)}
-                                    className="w-full py-3 border-2 border-dashed border-gray-200 rounded-xl text-gray-400 font-bold hover:text-teal-600 hover:border-teal-500 flex items-center justify-center gap-2 transition-all mt-auto"
-                                >
-                                    <Plus size={16}/> Plan Trip
-                                </button>
-                            </div>
-                        </div>
-                    ))}
-                </div>
-            </div>
         </div>
     );
   };
@@ -323,17 +288,10 @@ export const OperationsView: React.FC = () => {
         <div className="flex justify-between items-center mb-8">
             <div>
                 <h1 className="text-2xl font-bold text-shark-900">Operations Calendar</h1>
-                <p className="text-gray-500 text-sm">Manage boat schedules and view booking demand.</p>
+                <p className="text-gray-500 text-sm">Daily Schedule & Boat Planning</p>
             </div>
             
             <div className="flex items-center gap-4">
-                 <button 
-                    onClick={() => handleOpenModal()}
-                    className="bg-teal-600 text-white px-4 py-2 rounded-lg font-bold shadow hover:bg-teal-500 flex items-center gap-2"
-                >
-                    <Plus size={18} /> New Event
-                </button>
-
                 <div className="bg-white p-1 rounded-lg border border-gray-200 shadow-sm flex">
                     <button 
                         onClick={() => setViewMode('daily')}
@@ -387,68 +345,35 @@ export const OperationsView: React.FC = () => {
 
         {viewMode === 'daily' ? renderDailyView() : renderMonthlyCalendar()}
 
-        {/* Add Event Modal */}
-        {isModalOpen && (
+        {/* Edit Event Modal */}
+        {isModalOpen && editingEvent && (
              <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
                 <div className="bg-white rounded-xl shadow-2xl max-w-md w-full p-6 animate-fade-in-up">
                     <div className="flex justify-between items-center mb-6">
-                        <h2 className="text-xl font-bold text-shark-900">Schedule Trip</h2>
+                        <div>
+                            <h2 className="text-xl font-bold text-shark-900">Update Dive Slot</h2>
+                            <p className="text-xs text-gray-500">{editingEvent.type} • {editingEvent.date}</p>
+                        </div>
                         <button onClick={() => setIsModalOpen(false)} className="text-gray-400 hover:text-shark-900"><X size={24}/></button>
                     </div>
 
                     <div className="space-y-4">
                          <div className="grid grid-cols-2 gap-4">
                             <div>
-                                <label className="text-xs font-bold text-gray-500 uppercase">Date</label>
-                                <input 
-                                    type="date"
-                                    className="w-full border rounded p-3 mt-1 bg-gray-50"
-                                    value={eventDraft.date}
-                                    onChange={(e) => setEventDraft({...eventDraft, date: e.target.value})}
-                                />
-                            </div>
-                            <div>
                                 <label className="text-xs font-bold text-gray-500 uppercase">Time</label>
                                 <input 
                                     type="time"
-                                    className="w-full border rounded p-3 mt-1 bg-gray-50"
-                                    value={eventDraft.time}
-                                    onChange={(e) => setEventDraft({...eventDraft, time: e.target.value})}
+                                    className="w-full border rounded p-3 mt-1 bg-gray-50 font-bold"
+                                    value={editingEvent.time}
+                                    onChange={(e) => setEditingEvent({...editingEvent, time: e.target.value})}
                                 />
                             </div>
-                        </div>
-
-                        <div>
-                            <label className="text-xs font-bold text-gray-500 uppercase">Trip Title</label>
-                            <input 
-                                className="w-full border rounded p-3 mt-1"
-                                placeholder="e.g. Tiger Zoo Deep"
-                                value={eventDraft.title}
-                                onChange={(e) => setEventDraft({...eventDraft, title: e.target.value})}
-                            />
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-4">
                             <div>
-                                <label className="text-xs font-bold text-gray-500 uppercase">Dive Type</label>
-                                <select 
-                                    className="w-full border rounded p-3 mt-1 bg-white"
-                                    value={eventDraft.type}
-                                    onChange={(e) => setEventDraft({...eventDraft, type: e.target.value as any})}
-                                >
-                                    <option>Tiger Zoo</option>
-                                    <option>Morning Dive</option>
-                                    <option>Afternoon Dive</option>
-                                    <option>Night Dive</option>
-                                    <option>Theory</option>
-                                </select>
-                            </div>
-                             <div>
                                 <label className="text-xs font-bold text-gray-500 uppercase">Boat</label>
                                 <select 
                                     className="w-full border rounded p-3 mt-1 bg-white"
-                                    value={eventDraft.boat}
-                                    onChange={(e) => setEventDraft({...eventDraft, boat: e.target.value as any})}
+                                    value={editingEvent.boat}
+                                    onChange={(e) => setEditingEvent({...editingEvent, boat: e.target.value as any})}
                                 >
                                     <option>Shark One</option>
                                     <option>Shark Two</option>
@@ -458,20 +383,36 @@ export const OperationsView: React.FC = () => {
                         </div>
 
                         <div>
-                            <label className="text-xs font-bold text-gray-500 uppercase">Initial Guest Count</label>
+                            <label className="text-xs font-bold text-gray-500 uppercase">Dive Site Name</label>
+                            <input 
+                                className="w-full border rounded p-3 mt-1 font-bold text-shark-900"
+                                placeholder={editingEvent.type === 'Tiger Zoo' ? 'Tiger Zoo' : 'Enter Dive Site Name'}
+                                value={editingEvent.title}
+                                onChange={(e) => setEditingEvent({...editingEvent, title: e.target.value})}
+                            />
+                        </div>
+                        
+                        <div>
+                            <label className="text-xs font-bold text-gray-500 uppercase">Assigned Guests</label>
                             <input 
                                 type="number"
-                                className="w-full border rounded p-3 mt-1"
-                                value={eventDraft.guestCount}
-                                onChange={(e) => setEventDraft({...eventDraft, guestCount: parseInt(e.target.value)})}
+                                className={`w-full border rounded p-3 mt-1 ${editingEvent.guestCount > MAX_BOAT_CAPACITY ? 'border-red-300 bg-red-50 text-red-900' : ''}`}
+                                value={editingEvent.guestCount}
+                                onChange={(e) => setEditingEvent({...editingEvent, guestCount: parseInt(e.target.value)})}
                             />
+                            {editingEvent.guestCount > MAX_BOAT_CAPACITY && (
+                                <div className="text-red-500 text-xs font-bold mt-1 flex items-center gap-1">
+                                    <AlertTriangle size={12} />
+                                    Warning: Exceeds 12 Pax capacity. Please assign remaining guests to 'Shark Two' or a rental boat.
+                                </div>
+                            )}
                         </div>
 
                         <button 
                             onClick={handleSaveEvent}
                             className="w-full bg-shark-900 text-white py-3 rounded-lg font-bold flex items-center justify-center gap-2 hover:bg-shark-800 mt-4"
                         >
-                            <Save size={18} /> Save Event
+                            <Save size={18} /> Update Schedule
                         </button>
                     </div>
                 </div>

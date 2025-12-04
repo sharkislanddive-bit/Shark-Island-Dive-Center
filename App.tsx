@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { ViewState, SystemUser } from './types';
 import { Sidebar } from './components/Sidebar';
@@ -8,10 +7,12 @@ import { OperationsView } from './components/OperationsView';
 import { BookingEngine } from './components/BookingEngine';
 import { AdminPanel } from './components/AdminPanel';
 import { LoginScreen } from './components/LoginScreen';
+import { Menu } from 'lucide-react';
 
 const App: React.FC = () => {
   const [user, setUser] = useState<SystemUser | null>(null);
   const [currentView, setCurrentView] = useState<ViewState>(ViewState.HOME);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   // Optional: Check local storage for persisted session
   useEffect(() => {
@@ -72,10 +73,20 @@ const App: React.FC = () => {
         onNavigate={setCurrentView} 
         currentUser={user}
         onLogout={handleLogout}
+        isOpen={isSidebarOpen}
+        onClose={() => setIsSidebarOpen(false)}
       />
 
       {/* Main Content Area */}
-      <main className="flex-1 ml-64 min-h-screen overflow-y-auto">
+      <main className="flex-1 lg:ml-64 min-h-screen overflow-y-auto">
+        {/* Mobile Header */}
+        <div className="lg:hidden bg-white border-b border-gray-200 p-4 sticky top-0 z-30 flex items-center justify-between shadow-sm">
+             <div className="font-bold text-shark-900">SHARK ISLAND</div>
+             <button onClick={() => setIsSidebarOpen(true)} className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg">
+                <Menu size={24} />
+             </button>
+        </div>
+
         {renderContent()}
       </main>
     </div>

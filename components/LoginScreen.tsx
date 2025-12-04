@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { getUsers } from '../services/mockDb';
 import { SystemUser } from '../types';
@@ -106,6 +105,10 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
 
           <div className="mt-8 text-center text-xs text-shark-500">
              Authorized personnel only. <br/>System activity is monitored.
+             
+             <div className="mt-6 pt-6 border-t border-white/5 opacity-70">
+                Powered by <a href="https://www.intouranex.com/" target="_blank" rel="noopener noreferrer" className="text-teal-400 hover:text-teal-300 font-bold transition-colors">IntouraNex</a>
+             </div>
           </div>
        </div>
     </div>

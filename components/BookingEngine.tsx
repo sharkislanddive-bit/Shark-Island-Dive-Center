@@ -64,13 +64,17 @@ export const BookingEngine: React.FC<BookingEngineProps> = ({ onBookingComplete 
   const handleBookingSubmission = async () => {
       if(!settings || !totals) return;
       
+      // 1. CONFIRMATION DIALOG
+      const confirmed = window.confirm("Are you sure you want to Confirm & Pay Deposit for this booking?");
+      if (!confirmed) return;
+
       setIsSubmitting(true);
       
       // Generate Unique Reference ID
       const newBookingRef = `SID-${Date.now().toString().slice(-6)}`;
       setBookingRef(newBookingRef);
 
-      // 1. Create full Booking object
+      // 2. Create full Booking object
       const newBooking: Booking = {
           ...draft,
           id: newBookingRef,
@@ -82,19 +86,22 @@ export const BookingEngine: React.FC<BookingEngineProps> = ({ onBookingComplete 
           assignedInstructorId: null 
       };
 
-      // 2. Persist to Local Storage
+      // 3. Log details to console (Simulate Booking Completion)
+      console.log("=== BOOKING DETAILS LOG ===", newBooking);
+
+      // 4. Persist to Local Storage
       saveBooking(newBooking);
 
-      // 3. Send Email (Simulated)
+      // 5. Send Email (Simulated)
       await sendConfirmationEmail(draft, totals, settings, newBookingRef);
       
-      // 4. Show Success Modal
+      // 6. Show Success Modal
       setIsSubmitting(false);
       setShowConfirmModal(true);
   };
   
   const handleCloseModal = () => {
-      console.log("=== BOOKING COMPLETED ===");
+      console.log("=== NAVIGATING TO HOME ===");
       setShowConfirmModal(false);
       onBookingComplete();
   };
@@ -503,7 +510,7 @@ export const BookingEngine: React.FC<BookingEngineProps> = ({ onBookingComplete 
                                     <>
                                         <Loader2 className="animate-spin" /> Processing...
                                     </>
-                                ) : 'Confirm Booking Request'}
+                                ) : 'Confirm & Pay Deposit'}
                             </button>
                         </div>
                     </div>
