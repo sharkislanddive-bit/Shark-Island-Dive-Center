@@ -1,10 +1,11 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { PricingSettings, BookingDraft, BookingTotals } from '../types';
+import { PricingSettings, BookingDraft, BookingTotals, Booking } from '../types';
 import { getSettings, calculateTotals } from '../services/settingsService';
 import { Calendar, Users, Anchor, Hotel, CheckCircle, Info, Leaf, User, CreditCard, Loader2 } from 'lucide-react';
 import { askSharkExpert } from '../services/geminiService';
 import { sendConfirmationEmail } from '../services/emailService';
+import { saveBooking } from '../services/bookingService';
 
 interface BookingEngineProps {
   onBookingComplete: () => void;
@@ -18,8 +19,9 @@ export const BookingEngine: React.FC<BookingEngineProps> = ({ onBookingComplete 
   const [isThinking, setIsThinking] = useState(false);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   
-  // New state for email sending
+  // New state for email sending and ref
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [bookingRef, setBookingRef] = useState('');
 
   const [draft, setDraft] = useState<BookingDraft>({
     checkIn: new Date().toISOString().split('T')[0],
@@ -64,10 +66,29 @@ export const BookingEngine: React.FC<BookingEngineProps> = ({ onBookingComplete 
       
       setIsSubmitting(true);
       
-      // 1. Send Email (Simulated)
-      await sendConfirmationEmail(draft, totals, settings);
+      // Generate Unique Reference ID
+      const newBookingRef = `SID-${Date.now().toString().slice(-6)}`;
+      setBookingRef(newBookingRef);
+
+      // 1. Create full Booking object
+      const newBooking: Booking = {
+          ...draft,
+          id: newBookingRef,
+          createdAt: new Date().toISOString(),
+          status: 'PENDING',
+          grandTotal: totals.grandTotal,
+          // For demo purposes, we can randomly assign an instructor if one exists, 
+          // or leave it null for the admin to assign. Let's leave null.
+          assignedInstructorId: null 
+      };
+
+      // 2. Persist to Local Storage
+      saveBooking(newBooking);
+
+      // 3. Send Email (Simulated)
+      await sendConfirmationEmail(draft, totals, settings, newBookingRef);
       
-      // 2. Show Success Modal
+      // 4. Show Success Modal
       setIsSubmitting(false);
       setShowConfirmModal(true);
   };
@@ -118,7 +139,6 @@ export const BookingEngine: React.FC<BookingEngineProps> = ({ onBookingComplete 
                             key={s.id} 
                             onClick={() => {
                                 if (step > s.id) setStep(s.id); // Can always go back
-                                // Can only go forward if we are already past it (simple logic for now)
                             }}
                             className={`flex flex-col items-center cursor-pointer transition-all ${step === s.id ? 'text-teal-600 scale-110' : 'text-gray-400'} ${step > s.id ? 'text-teal-600 hover:text-teal-500' : ''}`}
                         >
@@ -581,6 +601,13 @@ export const BookingEngine: React.FC<BookingEngineProps> = ({ onBookingComplete 
                     <CheckCircle size={32} />
                 </div>
                 <h3 className="text-2xl font-bold text-shark-900 text-center mb-2">Request Received!</h3>
+                
+                {/* Booking Ref Display */}
+                <div className="bg-shark-50 border border-shark-100 rounded-lg py-2 px-4 mx-auto w-fit mb-4">
+                    <span className="text-xs text-gray-500 uppercase mr-2">Reference:</span>
+                    <span className="font-mono font-bold text-teal-600 text-lg">{bookingRef}</span>
+                </div>
+
                 <p className="text-gray-500 text-center mb-6 text-sm leading-relaxed">
                     Thank you <strong>{draft.guestName}</strong>. We have received your booking request.
                     <br/><br/>

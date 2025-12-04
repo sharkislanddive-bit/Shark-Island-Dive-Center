@@ -1,3 +1,4 @@
+
 import { PricingSettings, DiveTier, Accommodation, Season } from '../types';
 
 const STORAGE_KEY = 'shark_island_settings';
@@ -35,6 +36,22 @@ const DEFAULT_SETTINGS: PricingSettings = {
       percentageAdjustment: 20
     }
   ],
+  instructors: [
+    {
+      id: 'lonu',
+      name: 'Lonu',
+      role: 'Course Director',
+      unavailableDates: [],
+      imageUrl: 'https://ui-avatars.com/api/?name=Lonu&background=0284c7&color=fff'
+    },
+    {
+      id: 'kai',
+      name: 'Kai',
+      role: 'Instructor',
+      unavailableDates: [],
+      imageUrl: 'https://ui-avatars.com/api/?name=Kai&background=0d9488&color=fff'
+    }
+  ],
   domesticFlightPrice: 360,
   groundTransferPrice: 20,
   groundTransferType: 'PER_PERSON',
@@ -48,7 +65,10 @@ export const getSettings = (): PricingSettings => {
     try {
       const parsed = JSON.parse(stored);
       // Merge with default to ensure new fields exist if loading old data
-      return { ...DEFAULT_SETTINGS, ...parsed };
+      const merged = { ...DEFAULT_SETTINGS, ...parsed };
+      // Ensure instructors array exists if loading from older localstorage
+      if (!merged.instructors) merged.instructors = DEFAULT_SETTINGS.instructors;
+      return merged;
     } catch (e) {
       console.error("Failed to parse settings", e);
       return DEFAULT_SETTINGS;
@@ -86,8 +106,6 @@ export const calculateTotals = (
         const dateStr = currentDate.toISOString().split('T')[0];
         
         // Find applicable season
-        // In case of overlap, we take the highest adjustment for safety, or just the first found.
-        // Let's take the first found for simplicity.
         const season = settings.seasons?.find(s => dateStr >= s.startDate && dateStr <= s.endDate);
         
         if (season) {
